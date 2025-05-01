@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TypeAlias, Generic
 from abc import ABC, abstractmethod
+from functools import lru_cache
 from attrs import field, frozen, evolve
 from typing import TypeVar
 from pgsn.meta_info import MetaInfo
@@ -48,10 +49,11 @@ def cast(x: Castable, is_named: bool) -> Term:
         case _: assert False
 
 
-@frozen(kw_only=True)
+@frozen(kw_only=True, cache_hash=True)
 class Term(ABC):
     # meta_info is always not empty
     meta_info: MetaInfo = field(default=meta.empty, eq=False)
+    cache : list[list[Term | None]] = field(default=[[]], eq=False)
     is_named: bool = field(validator=helpers.not_none)
 
     @classmethod
@@ -67,6 +69,10 @@ class Term(ABC):
         return cls.build(is_named=True, **kwarg)
 
     def evolve(self, **kwarg):
+        evolved = self._evolve(**kwarg)
+        return evolve(evolved, cache=[[]])
+
+    def _evolve(self, **kwarg):
         return evolve(self, **kwarg)
 
     # Only application becomes closure, otherwise None
@@ -76,12 +82,16 @@ class Term(ABC):
 
     # If None is returned, the reduction is terminated.
     def eval_or_none(self):
+        if len(self.cache[0]) > 0:
+            return self.cache[0][0]
         if self.is_named:
             t = self.remove_name()
         else:
             t = self
         evaluated = t._eval_or_none()
         assert (evaluated is None) or (not evaluated.is_named)
+        assert (evaluated is None) or (evaluated != t)  # should progress
+        self.cache[0] = [evaluated]
         return evaluated
 
     def eval(self) -> Term:
@@ -184,7 +194,7 @@ class Variable(Term):
     def from_name(cls, name:str):
         return cls.named(name=name)
 
-    def evolve(self, num: int | None = None, name: str | None = None):
+    def _evolve(self, num: int | None = None, name: str | None = None):
         if num is None and name is not None:
             return evolve(self, num=None, name=name, is_named=True)
         if num is not None and name is None:
@@ -234,7 +244,7 @@ class Abs(Term):
     def __attr_post_init__(self):
         assert self.v.is_named == self.t.is_named
 
-    def evolve(self, t: Term, v: Variable | None = None):
+    def _evolve(self, t: Term, v: Variable | None = None):
         if v is None and not t.is_named:
             return evolve(self, v=v, t=t, is_named=False)
         elif v is not None and v.is_named and t.is_named:
@@ -292,7 +302,7 @@ class App(Term):
     def __attr_post_init__(self):
         assert self.t1.is_named == self.t2.is_named
 
-    def evolve(self, t1: Term | None = None, t2: Term | None = None):
+    def _evolve(self, t1: Term | None = None, t2: Term | None = None):
         if t1 is None:
             t1 = self.t1
         if t2 is None:
@@ -367,7 +377,7 @@ class Builtin(Term):
         return reduced, args[self.arity:]
 
     def _remove_name_with_context(self, context: list[str]) -> Term:
-        return evolve(self, is_named=False)
+        return self.evolve(is_named=False)
 
 
 @frozen
@@ -388,7 +398,7 @@ class Constant(Builtin):
         return set()
 
     def _remove_name_with_context(self, context: list[str]) -> Term:
-        return evolve(self, is_named=False)
+        return self.evolve(is_named=False)
 
     def _applicable_args(self, _):
         return False
@@ -414,7 +424,7 @@ class BuiltinFunction(Builtin, ABC):
         return set()
 
     def _remove_name_with_context(self, context: list[str]) -> Term:
-        return evolve(self, is_named=False)
+        return self.evolve(is_named=False)
 
 
 @frozen
@@ -552,11 +562,11 @@ class List(Unary):
             return None
         else:
             evaluated_expanded = (x[0] if x[1] is None else x[1] for x in zip(self.terms, evaluated))
-            return evolve(self, terms=tuple(evaluated_expanded))
+            return self.evolve(terms=tuple(evaluated_expanded))
 
     def _shift(self, d, c):
         shifted = [t.shift(d, c) for t in self.terms]
-        return evolve(self, terms=tuple(shifted))
+        return self.evolve(terms=tuple(shifted))
 
     def _subst_or_none(self, num, term):
         subst = [t.subst_or_none(num, term) for t in self.terms]
@@ -564,7 +574,7 @@ class List(Unary):
             return None
         else:
             subst_expanded = (x[0] if x[1] is None else x[1] for x in zip(self.terms, subst))
-            return evolve(self, terms=tuple(subst_expanded))
+            return self.evolve(terms=tuple(subst_expanded))
 
     def _free_variables(self):
         return set().union(*[t.free_variables() for t in self.terms])
@@ -594,7 +604,7 @@ class Record(Unary):
     def build(cls, is_named: bool, attributes: dict[str, Term]):
         return cls(is_named=is_named, attributes=attributes.copy())
 
-    def evolve(self, is_named: bool | None = None, attributes: dict[str, Term] | None =None):
+    def _evolve(self, is_named: bool | None = None, attributes: dict[str, Term] | None =None):
         if attributes is None:
             attributes = self._attributes
         if is_named is None:
