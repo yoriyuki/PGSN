@@ -656,5 +656,9 @@ class Record(Unary):
         return self.attributes()[term.value]
 
 
+@frozen
 class PGSNObject(Record):
-    pass
+    instance_of: PGSNObject | None = field()
+
+    def __getattr__(self, name):
+        return self(name)(self)
