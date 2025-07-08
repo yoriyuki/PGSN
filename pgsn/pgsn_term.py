@@ -1,11 +1,9 @@
 from __future__ import annotations
 from typing import TypeAlias, Generic
 from abc import ABC, abstractmethod
-from functools import lru_cache
 from attrs import field, frozen, evolve
 from typing import TypeVar
-from pgsn.meta_info import MetaInfo
-from pgsn import helpers, meta_info as meta
+from pgsn import helpers
 
 Term: TypeAlias = "Term"
 T = TypeVar('T')
@@ -52,7 +50,7 @@ def cast(x: Castable, is_named: bool) -> Term:
 @frozen(kw_only=True, cache_hash=True)
 class Term(ABC):
     # meta_info is always not empty
-    meta_info: MetaInfo = field(default=meta.empty, eq=False)
+    meta_info: dict = field(default={}, eq=False)
     cache : list[list[Term | None]] = field(default=[[]], eq=False)
     is_named: bool = field(validator=helpers.not_none)
 
@@ -67,6 +65,12 @@ class Term(ABC):
     @classmethod
     def named(cls, **kwarg) -> Term:
         return cls.build(is_named=True, **kwarg)
+
+    def add_metainfo(self, k:str, v:str):
+        self.meta_info[k] = v
+
+    def def_metainfo(self, k):
+        del(self.meta_info[k])
 
     def evolve(self, **kwarg):
         evolved = self._evolve(**kwarg)
@@ -653,3 +657,7 @@ class Record(Unary):
 
     def _apply_arg(self, term: String):
         return self.attributes()[term.value]
+
+
+class PGSNObject(Record):
+    name =

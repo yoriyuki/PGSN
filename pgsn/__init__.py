@@ -7,4 +7,3 @@ from .object_term import *     # Record, Class, is_instance などOO関連
 from .gsn import *
 from .debug_info import *
 from .helpers import *
-from .meta_info import *

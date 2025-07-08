@@ -1,4 +1,4 @@
-from pgsn import meta_info, pgsn_term, stdlib
+from pgsn import pgsn_term, stdlib
 from pgsn.stdlib import let, lambda_abs, lambda_abs_vars
 
 
@@ -7,16 +7,10 @@ from pgsn.stdlib import let, lambda_abs, lambda_abs_vars
 # import record_term
 
 
-def test_meta_info():
-    info = meta_info.MetaInfo()
-    assert info is not None
-
-
 def test_var():
-    info = meta_info.MetaInfo(name_info='x')
-    var_x = pgsn_term.Variable.named(name='x', meta_info=info)
+    var_x = pgsn_term.Variable.named(name='x', meta_info={'name':'x'})
     nameless_x = var_x.remove_name()
-    assert nameless_x.meta_info.name_info == 'x'
+    assert (nameless_x.meta_info['name']== 'x')
 
 
 def test_pgsn_term_id():
