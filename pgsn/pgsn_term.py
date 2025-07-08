@@ -178,6 +178,9 @@ class Term(ABC):
             return t
         return App.build(t1=t, t2=kwarg, is_named=self.is_named)
 
+    def __getitem__(self, item):
+        return self(item)
+
     def pretty(self):
         return self.__str__()
 
