@@ -360,7 +360,6 @@ class App(Term):
 class Builtin(Term):
     # hack.  the default is an invalid value
     arity: int = field(validator=[helpers.not_none, helpers.non_negative])
-    name: str | None = field()
 
     @abstractmethod
     def _applicable_args(self, args: tuple[Term, ...]) -> bool:
@@ -554,7 +553,6 @@ class Boolean(Data[bool]):
 @frozen
 class List(Unary):
     terms: tuple[Term, ...] = field(validator=helpers.not_none)
-    name: str = 'List'
 
     def __attr_post_init__(self):
         assert all(isinstance(t, Term) for t in self.terms)
@@ -596,7 +594,6 @@ class List(Unary):
 
 @frozen
 class Record(Unary):
-    name = 'Record'
     _attributes: dict[str, Term] = \
         field(validator=helpers.not_none)
 
@@ -660,4 +657,4 @@ class Record(Unary):
 
 
 class PGSNObject(Record):
-    name =
+    pass

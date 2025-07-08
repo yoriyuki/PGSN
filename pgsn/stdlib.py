@@ -22,7 +22,6 @@ def check_type_dict(arg: Term, types: dict):
 
 @frozen
 class Cons(BuiltinFunction):
-    name = 'Cons'
     arity = 2
 
     def _applicable_args(self, args: Sequence[Term]):
@@ -33,7 +32,6 @@ class Cons(BuiltinFunction):
 
 @frozen
 class Head(Unary):
-    name = 'Head'
 
     def _applicable(self, arg: Term):
         return isinstance(arg, List) and len(arg.terms) >= 1
@@ -43,7 +41,6 @@ class Head(Unary):
 
 @frozen
 class Tail(Unary):
-    name = 'Tail'
 
     def _applicable(self, arg: Term):
         return isinstance(arg, List) and len(arg.terms) >= 1
@@ -53,7 +50,6 @@ class Tail(Unary):
 
 
 class Index(BuiltinFunction):
-    name = 'Index'
     arity = 2
 
     def _applicable_args(self, args: Sequence[Term]):
@@ -65,7 +61,6 @@ class Index(BuiltinFunction):
 
 @frozen
 class Fold(BuiltinFunction):
-    name = 'Fold'
     arity = 3
 
     def _applicable_args(self, args: Sequence[Term]):
@@ -89,7 +84,6 @@ class Fold(BuiltinFunction):
 
 @frozen
 class Map(BuiltinFunction):
-    name = 'Map'
     arity = 2
 
     def _applicable_args(self, args: Sequence[Term]):
@@ -110,7 +104,6 @@ class Map(BuiltinFunction):
 @frozen
 class Plus(BuiltinFunction):
     arity = 2
-    name = 'Plus'
 
     def _applicable_args(self, args: tuple[Term, ...]):
         return len(args) >= 2 and isinstance(args[0], Integer) and isinstance(args[1], Integer)
@@ -192,7 +185,6 @@ class MultiArgFunction(BuiltinFunction):
 
 class IfThenElse(BuiltinFunction):
     arity = 3
-    name = 'IfThenElse'
 
     def _applicable_args(self, terms: tuple[Term,...]):
         return isinstance(terms[0], Boolean)
@@ -205,7 +197,6 @@ class IfThenElse(BuiltinFunction):
 # guard b t only progresses b is true
 class Guard(BuiltinFunction):
     arity=2
-    name='Guard'
 
     def _applicable_args(self, terms: tuple[Term,...]):
         return isinstance(terms[0], Boolean) and terms[0].value
@@ -217,7 +208,6 @@ class Guard(BuiltinFunction):
 # Comparison. does not compare App and Abs
 class Equal(BuiltinFunction):
     arity = 2
-    name = 'Equal'
 
     def _applicable_args(self, args: tuple[Term,...]):
         return all((not isinstance(arg, App) and not isinstance(arg, Abs) for arg in args))
@@ -228,7 +218,6 @@ class Equal(BuiltinFunction):
 
 class HasLabel(BuiltinFunction):
     arity = 2
-    name = 'HasLabel'
 
     def _applicable_args(self, terms: tuple[Term,...]):
         return isinstance(terms[0], Record) and isinstance(terms[1], String)
@@ -241,7 +230,6 @@ class HasLabel(BuiltinFunction):
 
 class AddAttribute(BuiltinFunction):
     arity = 3
-    name = 'AddAttribute'
 
     def _applicable_args(self, terms: tuple[Term,...]):
         return isinstance(terms[0], Record) and isinstance(terms[1], String)
@@ -254,7 +242,6 @@ class AddAttribute(BuiltinFunction):
 
 class RemoveAttribute(BuiltinFunction):
     arity = 2
-    name = 'RemoveAttribute'
 
     def _applicable_args(self, terms: tuple[Term,...]):
         return isinstance(terms[0], Record) and isinstance(terms[1], String)
@@ -266,7 +253,6 @@ class RemoveAttribute(BuiltinFunction):
 
 
 class ListLabels(Unary):
-    name = 'ListLabels'
 
     def _applicable(self, term: Term):
         return isinstance(term, Record)
@@ -278,7 +264,6 @@ class ListLabels(Unary):
 
 class OverwriteRecord(BuiltinFunction):
     arity = 2
-    name = "OverwriteRecord"
 
     def _applicable_args(self, terms: tuple[Term,...]):
         return isinstance(terms[0], Record) and isinstance(terms[1], Record)
@@ -311,7 +296,6 @@ def _uncast(t: Term):
 
 class Formatter(BuiltinFunction):
     arity = 2
-    name = 'Format string'
 
     def _applicable_args(self, terms: tuple[Term,...]):
         if not len(terms) == 2:
