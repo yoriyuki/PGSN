@@ -660,8 +660,163 @@ class Record(Unary):
 
 
 @frozen
-class PGSNObject(Record):
+class PGSNClass(Unary):
+    inherit: PGSNClass | None = field()
+    _defaults: dict[str, Term] = field(default={}, validator=helpers.not_none)
+    _attributes: set[str, ...] = field(default=set(), validator=helpers.not_none)
+    _methods: dict[str, Term] = field(default={}, validator=helpers.not_none)
+
+    def __attr_post_init__(self):
+        _default = self.inherit.defaults() | self._defaults
+        assert all(k in self._attributes for k in self._defaults.keys())
+        assert all(name not in self._attributes for name in self._methods.keys())
+
+    @classmethod
+    def build(cls, is_named: bool, inherit: PGSNClass | None,
+              defaults: dict[str, Term], attributes: set[str, ...], methods: dict[str, Term]):
+        if inherit is not None:
+            defaults = inherit.defaults() | defaults
+            attributes = set(inherit.defaults()) | set(attributes)
+            methods = inherit.methods() | methods
+        return cls(is_named=is_named, defaults=defaults.copy(), attributes=attributes, methods=methods.copy())
+
+    def defaults(self):
+        return self._defaults.copy()
+
+    def attributes(self):
+        return self._attributes
+
+    def methods(self):
+        return self._methods.copy()
+
+    def _evolve(self,
+                is_named: bool | None = None,
+                defaults: dict[str, Term] | None = None,
+                attributes: set[str,...] | None = None,
+                methods: dict[str, Term] | None = None):
+        if is_named is None:
+            is_named = self.is_named
+        if defaults is None:
+            attributes = self._attributes
+        if attributes is None:
+            attributes = self._attributes
+        return evolve(self,
+                      is_named=is_named,
+                      defaults=defaults.copy(),
+                      attributes=attributes,
+                      methods=methods.copy())
+
+    def _applicable(self, arg: Term):
+        if not isinstance(arg, Record):
+            return False
+        attr = arg.attributes()
+        if all((k in attr.keys()) or k in self.defaults().keys() for k in self.attributes()):
+            return True
+        else:
+            return False
+
+    def _apply_arg(self, arg: Record):
+        attr = arg.attributes()
+        for k in self._defaults:
+            if not k in attr.keys():
+                attr[k] = self.defaults()[k]
+        PGSNObject.nameless(instance_of=self, attributes=attr, methods=self.methods())
+
+
+class Inherit(BuiltinFunction):
+
+    def _applicable_args(self, args: tuple[Term, ...]) -> bool:
+        if not len(args) == 4:
+            return False
+        if not (isinstance(args[0], PGSNClass) and
+                isinstance(args[1], Record) and
+                isinstance(args[2], List) and
+                isinstance(args[3], Record)):
+            return False
+        if not all(isinstance(t, String) for t in args[2].terms):
+            return False
+        else:
+            return True
+
+    def _apply_args(self, args: tuple[PGSNClass, Record, List, Record]) -> Term:
+        inherit = args[0]
+        defaults = args[1].attributes()
+        attrs = args[2].terms
+        methods = args[3].attributes()
+        return inherit.__class__.nameless(inherit=inherit, defaults=defaults, attrs=set(attrs), methods=methods)
+
+
+class IsSubclass(BuiltinFunction):
+
+    def _applicable_args(self, args: tuple[Term, ...]) -> bool:
+        if not len(args) == 2:
+            return False
+        if isinstance(args[0], PGSNClass) and isinstance(args[1], PGSNClass):
+            return True
+        else:
+            return False
+
+    def _apply_args(self, args: tuple[PGSNClass, PGSNClass]) -> Term:
+        cls1 = args[0]
+        cls2 = args[1]
+
+        if cls1.inherit is None:
+            return Boolean.nameless(value=False)
+        if cls1.inherit == cls2:
+            return Boolean.nameless(value=True)
+        else:
+            return self(cls1.inherit)(cls2)
+
+
+@frozen
+class PGSNObject(Unary):
     instance_of: PGSNObject | None = field()
+    _attributes: dict[str, Term] = field(validator=helpers.not_none)
+    _methods: dict[str, Term] = field()
+
+    def attribute(self):
+        return self._attributes.copy()
+
+    def methods(self):
+        return self._methods.copy()
+
+    @classmethod
+    def build(cls, is_named: bool, defaults: dict[str, Term], attributes: tuple[str, ...], methods: dict[str, Term]):
+        return cls(is_named=is_named, defaults=defaults.copy(), attributes=attributes, methods=methods.copy())
+
+    def _evolve(self,
+                is_named: bool | None = None,
+                defaults: dict[str, Term] | None = None,
+                attributes: dict[str, ...] | None = None,
+                methods: dict[str, Term] | None = None):
+        if is_named is None:
+            is_named = self.is_named
+        if attributes is None:
+            attributes = self._attributes.copy()
+        if methods is None:
+            methods = self.methods()
+        return evolve(self,
+                      is_named=is_named,
+                      attributes=attributes,
+                      methods=methods)
+
+    def _applicable(self, arg: Term):
+        if not isinstance(arg, String):
+            return False
+        k = arg.value
+        if k in self.attributes().keys() or self.methods().keys():
+            return True
+        else:
+            return False
+
+    def _apply_arg(self, arg: String):
+        k = arg.value
+        if k in self.attributes().keys():
+            return self.attributes()[k]
+        elif k in self.methods().keys:
+            return (self.methods[k])(self)
+        assert False
 
     def __getattr__(self, name):
-        return self(name)(self)
+        return self(name)
+

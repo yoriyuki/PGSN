@@ -1,5 +1,5 @@
-from pgsn.stdlib import *
 from pgsn import stdlib
+from pgsn.stdlib import *
 
 ClassTerm = Record
 ObjectTerm = Record

@@ -1,9 +1,9 @@
 from __future__ import annotations
-from pgsn import helpers, pgsn_term
+from pgsn import helpers, pgsn_term, PGSNClass, PGSNObject, IsSubclass
 from typing import Sequence, Any
 from attrs import frozen, evolve, field
 from pgsn.pgsn_term import BuiltinFunction, Term, Unary, Variable, Abs, App, String, Integer, \
-    Boolean, List, Record, Constant
+    Boolean, List, Record, Constant, PGSNClass, PGSNObject, Inherit
 
 
 def check_type_list(arg: Term, types: list):
@@ -316,6 +316,12 @@ class Formatter(BuiltinFunction):
         return String.build(is_named=self.is_named, value=terms[0].value.format(**python_vals))
 
 
+###########################
+# DSL API
+# Enough for everyday use
+###########################
+
+
 format_string = Formatter.named()
 
 
@@ -480,3 +486,18 @@ def list_term(terms: tuple[Term,...]) -> List:
 def value_of(term: Term, steps=1000) -> Any:
     t = term.fully_eval(steps)
     return _uncast(t)
+
+
+### OO programming
+ClassTerm = PGSNClass
+ObjectTerm = PGSNObject
+
+## Class
+
+# inheritance
+base_class = PGSNClass.named()
+inherit_class = Inherit.named()
+
+# subclass
+is_subclass = IsSubclass.named()
+
