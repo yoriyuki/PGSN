@@ -1,9 +1,9 @@
 from __future__ import annotations
-from pgsn import helpers, pgsn_term, PGSNClass, PGSNObject, IsSubclass
+from pgsn import helpers, pgsn_term, PGSNClass, PGSNObject, IsSubclass, DefineClass, IsInstance
 from typing import Sequence, Any
 from attrs import frozen, evolve, field
 from pgsn.pgsn_term import BuiltinFunction, Term, Unary, Variable, Abs, App, String, Integer, \
-    Boolean, List, Record, Constant, PGSNClass, PGSNObject, Inherit
+    Boolean, List, Record, Constant, PGSNClass, PGSNObject, DefineClass
 
 
 def check_type_list(arg: Term, types: list):
@@ -496,8 +496,11 @@ ObjectTerm = PGSNObject
 
 # inheritance
 base_class = PGSNClass.named()
-inherit_class = Inherit.named()
+define_class = DefineClass.named()
 
 # subclass
 is_subclass = IsSubclass.named()
+
+## Objects
+is_instance = IsInstance.named()
 

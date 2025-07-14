@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import TypeAlias, Generic
 from abc import ABC, abstractmethod
+
+from attr import attributes
 from attrs import field, frozen, evolve
 from typing import TypeVar
 from pgsn import helpers
@@ -51,7 +53,6 @@ def cast(x: Castable, is_named: bool) -> Term:
 class Term(ABC):
     # meta_info is always not empty
     meta_info: dict = field(default={}, eq=False)
-    cache : list[list[Term | None]] = field(default=[[]], eq=False)
     is_named: bool = field(validator=helpers.not_none)
 
     @classmethod
@@ -74,7 +75,7 @@ class Term(ABC):
 
     def evolve(self, **kwarg):
         evolved = self._evolve(**kwarg)
-        return evolve(evolved, cache=[[]])
+        return evolve(evolved)
 
     def _evolve(self, **kwarg):
         return evolve(self, **kwarg)
@@ -86,8 +87,6 @@ class Term(ABC):
 
     # If None is returned, the reduction is terminated.
     def eval_or_none(self):
-        if len(self.cache[0]) > 0:
-            return self.cache[0][0]
         if self.is_named:
             t = self.remove_name()
         else:
@@ -95,7 +94,6 @@ class Term(ABC):
         evaluated = t._eval_or_none()
         assert (evaluated is None) or (not evaluated.is_named)
         assert (evaluated is None) or (evaluated != t)  # should progress
-        self.cache[0] = [evaluated]
         return evaluated
 
     def eval(self) -> Term:
@@ -672,13 +670,17 @@ class PGSNClass(Unary):
         assert all(name not in self._attributes for name in self._methods.keys())
 
     @classmethod
-    def build(cls, is_named: bool, inherit: PGSNClass | None,
-              defaults: dict[str, Term], attributes: set[str, ...], methods: dict[str, Term]):
+    def build(cls, is_named: bool, inherit: PGSNClass | None =None,
+              defaults: dict[str, Term] | None =None, attributes: set[str, ...] | None = None,
+              methods: dict[str, Term] | None = None):
+        defaults = helpers.default(defaults, {})
+        attributes = helpers.default(attributes, {})
+        methods = helpers.default(methods, {})
         if inherit is not None:
             defaults = inherit.defaults() | defaults
             attributes = set(inherit.defaults()) | set(attributes)
             methods = inherit.methods() | methods
-        return cls(is_named=is_named, defaults=defaults.copy(), attributes=attributes, methods=methods.copy())
+        return cls(is_named=is_named, inherit=inherit, defaults=defaults.copy(), attributes=attributes, methods=methods.copy())
 
     def defaults(self):
         return self._defaults.copy()
@@ -697,9 +699,11 @@ class PGSNClass(Unary):
         if is_named is None:
             is_named = self.is_named
         if defaults is None:
-            attributes = self._attributes
+            defaults = self.defaults()
         if attributes is None:
-            attributes = self._attributes
+            attributes = self.attributes()
+        if methods is None:
+            methods = self.methods()
         return evolve(self,
                       is_named=is_named,
                       defaults=defaults.copy(),
@@ -723,30 +727,49 @@ class PGSNClass(Unary):
         PGSNObject.nameless(instance_of=self, attributes=attr, methods=self.methods())
 
 
-class Inherit(BuiltinFunction):
+class DefineClass(Unary):
 
-    def _applicable_args(self, args: tuple[Term, ...]) -> bool:
-        if not len(args) == 4:
+    def _applicable(self, arg: Term) -> bool:
+        if not isinstance(arg, Record):
             return False
-        if not (isinstance(args[0], PGSNClass) and
-                isinstance(args[1], Record) and
-                isinstance(args[2], List) and
-                isinstance(args[3], Record)):
+        params = arg.attributes()
+        if not "inherit" in params:
             return False
-        if not all(isinstance(t, String) for t in args[2].terms):
+        if not isinstance(params["inherit"], PGSNClass):
             return False
+        if not set(params.keys()) <= {"inherit", "defaults", "attributes", "methods"}:
+            return False
+        if "defaults" in params and not isinstance(params["defaults"], Record):
+            return False
+        if "attributes" in params and not isinstance(params["attributes"], List):
+            return False
+        if "attributes" in params and not all(isinstance(k, String) for k in params["attributes"].terms):
+            return False
+        if "methods" in params and not isinstance(params["methods"], Record):
+            return False
+        return True
+
+    def _apply_arg(self, arg: Record) -> Term:
+        inherit: PGSNClass = arg.attributes()["inherit"]
+        if "defaults" in arg.attributes():
+            defaults = inherit.defaults()| arg.attributes()["defaults"].attributes()
         else:
-            return True
-
-    def _apply_args(self, args: tuple[PGSNClass, Record, List, Record]) -> Term:
-        inherit = args[0]
-        defaults = args[1].attributes()
-        attrs = args[2].terms
-        methods = args[3].attributes()
-        return inherit.__class__.nameless(inherit=inherit, defaults=defaults, attrs=set(attrs), methods=methods)
+            defaults = inherit.defaults()
+        if "attributes" in arg.attributes():
+            attributes = (set(inherit.attributes()) |
+                          set((a.value for a in arg.attributes()["attributes"].terms)))
+        else:
+            attributes = inherit.attributes()
+        if "methods" in arg.attributes():
+            methods = inherit.methods() | arg.attributes()["methods"].attributes()
+        else:
+            methods= inherit.methods()
+        return inherit.__class__.nameless(inherit=inherit, defaults=defaults, attributes=set(attributes),
+                                          methods=methods)
 
 
 class IsSubclass(BuiltinFunction):
+    arity = 2
 
     def _applicable_args(self, args: tuple[Term, ...]) -> bool:
         if not len(args) == 2:
@@ -770,7 +793,7 @@ class IsSubclass(BuiltinFunction):
 
 @frozen
 class PGSNObject(Unary):
-    instance_of: PGSNObject | None = field()
+    instance: PGSNClass = field()
     _attributes: dict[str, Term] = field(validator=helpers.not_none)
     _methods: dict[str, Term] = field()
 
@@ -781,22 +804,33 @@ class PGSNObject(Unary):
         return self._methods.copy()
 
     @classmethod
-    def build(cls, is_named: bool, defaults: dict[str, Term], attributes: tuple[str, ...], methods: dict[str, Term]):
-        return cls(is_named=is_named, defaults=defaults.copy(), attributes=attributes, methods=methods.copy())
+    def build(cls,
+              is_named: bool,
+              instance: PGSNClass | None = None,
+              attributes: tuple[str, ...] | None = None, methods: dict[str, Term]| None = None):
+        if instance is None:
+            raise ValueError()
+        return cls(is_named=is_named,
+                   instance=instance,
+                   attributes=helpers.default(attributes, {}).copy(),
+                   methods=helpers.default(methods, {}).copy())
 
     def _evolve(self,
                 is_named: bool | None = None,
-                defaults: dict[str, Term] | None = None,
+                instance: PGSNClass | None = None,
                 attributes: dict[str, ...] | None = None,
                 methods: dict[str, Term] | None = None):
         if is_named is None:
             is_named = self.is_named
+        if instance is None:
+            instance = self.instance
         if attributes is None:
             attributes = self._attributes.copy()
         if methods is None:
             methods = self.methods()
         return evolve(self,
                       is_named=is_named,
+                      instance=instance,
                       attributes=attributes,
                       methods=methods)
 
@@ -814,9 +848,34 @@ class PGSNObject(Unary):
         if k in self.attributes().keys():
             return self.attributes()[k]
         elif k in self.methods().keys:
-            return (self.methods[k])(self)
+            return (self.methods()[k])(self)
         assert False
 
     def __getattr__(self, name):
-        return self(name)
+        if name in self.methods():
+            return self(name)
+        else:
+            raise NotImplementedError
 
+
+class IsInstance(BuiltinFunction):
+    arity = 2
+
+    def _applicable_args(self, args: tuple[Term, ...]) -> bool:
+        if not len(args) == 2:
+            return False
+        if isinstance(args[0], PGSNObject) and isinstance(args[1], PGSNClass):
+            return True
+        else:
+            return False
+
+    def _apply_args(self, args: tuple[PGSNObject, PGSNClass]) -> Term:
+        obj = args[0]
+        cls = args[1]
+
+        if obj.instance == cls:
+            return Boolean.nameless(value=True)
+        elif cls.inherit is None:
+            return Boolean.nameless(value=False)
+        else:
+            return self(obj)(cls.inherit)
