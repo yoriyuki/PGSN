@@ -37,12 +37,12 @@ def test_subclass():
     assert not is_subclass(stdlib.base_class)(cls).fully_eval().value
 
 
-obj1 = cls()
+obj1 = cls({})
 obj2 = cls({'a': False})
 obj3 = cls({'b': 1})
 obj4 = cls2({'b': 1})
 obj5 = cls3({'b': 1, 'c':2})
-obj6 = cls3({'a':False, 'b': 1, 'c':2})
+obj6 = cls3({'a': False, 'b': 1, 'c':2})
 
 
 

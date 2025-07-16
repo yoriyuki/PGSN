@@ -34,12 +34,12 @@ def cast(x: Castable, is_named: bool) -> Term:
     match x:
         case Term():
             return x
-        case int():
-            return Integer.build(is_named=is_named, value=x)
         case str():
             return String.build(is_named=is_named, value=x)
         case bool():
             return Boolean.build(is_named=is_named, value=x)
+        case int():
+            return Integer.build(is_named=is_named, value=x)
         case list():
             y = [cast(z, is_named=is_named) for z in x]
             return List.build(is_named=is_named, terms=y)
@@ -178,6 +178,9 @@ class Term(ABC):
 
     def __getitem__(self, item):
         return self(item)
+
+    def __getattr__(self, name):
+        return self(name)
 
     def pretty(self):
         return self.__str__()
@@ -714,7 +717,7 @@ class PGSNClass(Unary):
         if not isinstance(arg, Record):
             return False
         attr = arg.attributes()
-        if all((k in attr.keys()) or k in self.defaults().keys() for k in self.attributes()):
+        if set(self.defaults().keys()) | set(attr.keys()) ==  set(self.attributes()):
             return True
         else:
             return False
@@ -724,9 +727,10 @@ class PGSNClass(Unary):
         for k in self._defaults:
             if not k in attr.keys():
                 attr[k] = self.defaults()[k]
-        PGSNObject.nameless(instance_of=self, attributes=attr, methods=self.methods())
+        return PGSNObject.nameless(instance=self, attributes=attr, methods=self.methods())
 
 
+@frozen
 class DefineClass(Unary):
 
     def _applicable(self, arg: Term) -> bool:
@@ -767,6 +771,13 @@ class DefineClass(Unary):
         return inherit.__class__.nameless(inherit=inherit, defaults=defaults, attributes=set(attributes),
                                           methods=methods)
 
+def _is_subclass(cls1: PGSNClass, cls2: PGSNClass):
+    if cls1.inherit is None:
+        return False
+    if cls1 == cls2:
+        return True
+    return _is_subclass(cls1.inherit, cls2)
+
 
 class IsSubclass(BuiltinFunction):
     arity = 2
@@ -783,37 +794,20 @@ class IsSubclass(BuiltinFunction):
         cls1 = args[0]
         cls2 = args[1]
 
-        if cls1.inherit is None:
-            return Boolean.nameless(value=False)
-        if cls1.inherit == cls2:
-            return Boolean.nameless(value=True)
-        else:
-            return self(cls1.inherit)(cls2)
+        return Boolean.nameless(value=_is_subclass(cls1, cls2))
 
 
 @frozen
 class PGSNObject(Unary):
-    instance: PGSNClass = field()
+    instance: PGSNClass = field(validator=helpers.not_none)
     _attributes: dict[str, Term] = field(validator=helpers.not_none)
     _methods: dict[str, Term] = field()
 
-    def attribute(self):
+    def attributes(self):
         return self._attributes.copy()
 
     def methods(self):
         return self._methods.copy()
-
-    @classmethod
-    def build(cls,
-              is_named: bool,
-              instance: PGSNClass | None = None,
-              attributes: tuple[str, ...] | None = None, methods: dict[str, Term]| None = None):
-        if instance is None:
-            raise ValueError()
-        return cls(is_named=is_named,
-                   instance=instance,
-                   attributes=helpers.default(attributes, {}).copy(),
-                   methods=helpers.default(methods, {}).copy())
 
     def _evolve(self,
                 is_named: bool | None = None,
@@ -847,35 +841,19 @@ class PGSNObject(Unary):
         k = arg.value
         if k in self.attributes().keys():
             return self.attributes()[k]
-        elif k in self.methods().keys:
+        elif k in self.methods().keys():
             return (self.methods()[k])(self)
         assert False
 
-    def __getattr__(self, name):
-        if name in self.methods():
-            return self(name)
-        else:
-            raise NotImplementedError
 
+@frozen
+class Instance(Unary):
 
-class IsInstance(BuiltinFunction):
-    arity = 2
-
-    def _applicable_args(self, args: tuple[Term, ...]) -> bool:
-        if not len(args) == 2:
-            return False
-        if isinstance(args[0], PGSNObject) and isinstance(args[1], PGSNClass):
+    def _applicable(self, arg: Term) -> bool:
+        if isinstance(arg, PGSNObject):
             return True
         else:
             return False
 
-    def _apply_args(self, args: tuple[PGSNObject, PGSNClass]) -> Term:
-        obj = args[0]
-        cls = args[1]
-
-        if obj.instance == cls:
-            return Boolean.nameless(value=True)
-        elif cls.inherit is None:
-            return Boolean.nameless(value=False)
-        else:
-            return self(obj)(cls.inherit)
+    def _apply_arg(self, arg: PGSNObject) -> Term:
+        return arg.instance

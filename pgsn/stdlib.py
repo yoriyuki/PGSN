@@ -1,9 +1,9 @@
 from __future__ import annotations
-from pgsn import helpers, pgsn_term, PGSNClass, PGSNObject, IsSubclass, DefineClass, IsInstance
+from pgsn import helpers, pgsn_term
 from typing import Sequence, Any
 from attrs import frozen, evolve, field
 from pgsn.pgsn_term import BuiltinFunction, Term, Unary, Variable, Abs, App, String, Integer, \
-    Boolean, List, Record, Constant, PGSNClass, PGSNObject, DefineClass
+    Boolean, List, Record, Constant, PGSNClass, PGSNObject, DefineClass, Instance, IsSubclass
 
 
 def check_type_list(arg: Term, types: list):
@@ -187,11 +187,14 @@ class IfThenElse(BuiltinFunction):
     arity = 3
 
     def _applicable_args(self, terms: tuple[Term,...]):
-        return isinstance(terms[0], Boolean)
+        return isinstance(terms[0], Boolean) or isinstance(terms[0], Integer)
 
     def _apply_args(self, terms: tuple[Term,...]):
         b = terms[0].value
-        return terms[1] if b else terms[2]
+        if isinstance(b, bool):
+            return terms[1] if b else terms[2]
+        if isinstance(b, int):
+            return terms[1] if b > 0 else terms[2]
 
 
 # guard b t only progresses b is true
@@ -488,6 +491,10 @@ def value_of(term: Term, steps=1000) -> Any:
     return _uncast(t)
 
 
+### internal variables
+_obj = variable("_obj")
+_class = variable("_class")
+
 ### OO programming
 ClassTerm = PGSNClass
 ObjectTerm = PGSNObject
@@ -502,5 +509,7 @@ define_class = DefineClass.named()
 is_subclass = IsSubclass.named()
 
 ## Objects
-is_instance = IsInstance.named()
+instance = Instance.named()
+is_instance = lambda_abs_vars((_obj, _class), is_subclass(instance(_obj))(_class))
+
 
