@@ -1,10 +1,9 @@
-from pgsn.object_term import *
-from pgsn.stdlib import lambda_abs_keywords
+from pgsn.stdlib import *  #FIXME
 
 gsn_class = define_class('GSN', base_class,gsn_type='Node')
 
 support_class = define_class('Support', gsn_class, gsn_type='Support')
-undeveloped = instantiate(support_class, description='Undeveloped', gsn_type='Undeveloped')
+undeveloped = support_class(description='Undeveloped', gsn_type='Undeveloped')
 evidence_class = define_class('Evidence', support_class, gsn_type='Evidence')
 strategy_class = define_class('Strategy', support_class, gsn_type='Strategy')
 
@@ -24,22 +23,22 @@ _contexts = variable('contexts')
 _sub_goals = variable('sub_goals')
 
 evidence = lambda_abs_keywords(arguments={'description': _d},
-                               body=instantiate(evidence_class)(description=_d))
+                               body=evidence_class(description=_d))
 strategy = lambda_abs_keywords(arguments={'description': _d, 'sub_goals': _sub_goals},
-                               body=instantiate(strategy_class)
+                               body=strategy_class
                                (description=_d, sub_goals=_sub_goals))
 goal = lambda_abs_keywords(arguments={'description': _d,
                                       'assumptions': _assumptions,
                                       'contexts': _contexts,
                                       'support': _support},
-                           defaults=stdlib.record({
-                               'assumptions': stdlib.empty,
-                               'contexts': stdlib.empty}),
-                           body=instantiate(goal_class)(description=_d, support=_support))
+                           defaults=record({
+                               'assumptions': empty,
+                               'contexts': empty}),
+                           body=goal_class(description=_d, support=_support))
 assumption = lambda_abs_keywords(arguments={'description': _d},
-                                 body=instantiate(assumption_class)(description=_d))
+                                 body=assumption_class(description=_d))
 context = lambda_abs_keywords(arguments={'description': _d},
-                              body=instantiate(context_class)(description=_d))
+                              body=context_class(description=_d))
 
 _goals = variable('goals')
 immediate = lambda_abs(_goals, strategy(description="immediate", sub_goals=_goals))
