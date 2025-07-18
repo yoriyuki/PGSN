@@ -113,7 +113,7 @@ def _dict_to_gsn(v: dict):
     if 'gsn_type' not in v:
         raise ValueError('PGSN term does not normalizes a GSN')
     match v['gsn_type']:
-        case 'Node':
+        case 'GSN_Node':
             raise ValueError('Node with unspecified kind')
         case 'Support':
             if v['description'] == 'Undeveloped':

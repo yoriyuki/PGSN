@@ -1,55 +1,79 @@
 import sys
+from math import expm1
 
 sys.path.append("..")
 import json
 import pprint
-from pgsn.gsn_term import *
-from pgsn import gsn, object_term
+import pgsn.gsn_term
+from pgsn import gsn
 
-robot = goal(description="There is no known vulnerability in the robot",
-             support=strategy(description="Argument over each vulnerability",
-                              sub_goals=[
-                                  goal(description="Vulnerability A is not exploited",
-                                       support=evidence(description="Test results")),
-                                  goal(description="Vulnerability B is not exploited",
-                                       support=evidence(description="Test results"))
+from typeguard import install_import_hook
+
+install_import_hook('robot')
+
+install_import_hook('gsn')
+install_import_hook('gsn_term')
+install_import_hook('helpers')
+install_import_hook('pgsn_term')
+install_import_hook('stdlib')
+
+robot = pgsn.gsn_term.goal(description="There is no known vulnerability in the robot",
+                           support=pgsn.gsn_term.strategy(description="Argument over each vulnerability",
+                                                          sub_goals=[
+                                  pgsn.gsn_term.goal(description="Vulnerability A is not exploited",
+                                                     support=pgsn.gsn_term.evidence(description="Test results")),
+                                  pgsn.gsn_term.goal(description="Vulnerability B is not exploited",
+                                                     support=pgsn.gsn_term.evidence(description="Test results"))
                               ]
-                              )
-             )
+                                                          )
+                           )
 
-web_server = goal(description="The server can deal with DoS attacks on the server",
-                  support=evidence(description="Access restriction"))
 
-system = goal(description="The robot does not make unintended movements",
-              support=strategy(description="Argument over the robot and the server",
-                               sub_goals=[
-                                   goal(description="The robot behaves according to commands",
-                                        support=strategy(description="Argument over each threat",
-                                                         sub_goals=[robot]
-                                                         )),
-                                   goal(description="The server gives correct commands to the robot",
-                                        support=strategy(description="Argument over each threat",
-                                                         sub_goals=[web_server])
-                                        )
+s = pgsn.gsn_term.strategy(description="Argument over each vulnerability",
+                                                          sub_goals=[
+                                  pgsn.gsn_term.goal(description="Vulnerability A is not exploited",
+                                                     support=pgsn.gsn_term.evidence(description="Test results")),
+                                  pgsn.gsn_term.goal(description="Vulnerability B is not exploited",
+                                                     support=pgsn.gsn_term.evidence(description="Test results"))
+                              ]
+                                                          )
+
+pprint.pprint(pgsn.stdlib._uncast(pgsn.gsn_term.evidence(description="Test results").fully_eval()), indent=2)
+
+e1 = pgsn.gsn_term.evidence(description="Test results")
+pprint.pprint(pgsn.stdlib._uncast(e1.fully_eval()), indent=2)
+
+g1 = pgsn.gsn_term.goal(description="Vulnerability A is not exploited",
+                                                     support=pgsn.gsn_term.evidence(description="Test results"))
+pprint.pprint(pgsn.stdlib._uncast(g1.fully_eval()), indent=2)
+
+pprint.pprint(pgsn.stdlib._uncast(s.fully_eval()), indent=2)
+pprint.pprint(pgsn.stdlib._uncast(robot.fully_eval()), indent=2)
+
+
+pprint.pprint(pgsn.stdlib._uncast(robot.fully_eval()), indent=2)
+
+web_server = pgsn.gsn_term.goal(description="The server can deal with DoS attacks on the server",
+                                support=pgsn.gsn_term.evidence(description="Access restriction"))
+
+system = pgsn.gsn_term.goal(description="The robot does not make unintended movements",
+                            support=pgsn.gsn_term.strategy(description="Argument over the robot and the server",
+                                                           sub_goals=[
+                                   pgsn.gsn_term.goal(description="The robot behaves according to commands",
+                                                      support=pgsn.gsn_term.strategy(description="Argument over each threat",
+                                                                                     sub_goals=[robot]
+                                                                                     )),
+                                   pgsn.gsn_term.goal(description="The server gives correct commands to the robot",
+                                                      support=pgsn.gsn_term.strategy(description="Argument over each threat",
+                                                                                     sub_goals=[web_server])
+                                                      )
                                ]
-                               )
-              )
-
-s = strategy(description="Argument over each vulnerability",
-                              sub_goals=[
-                                  goal(description="Vulnerability A is not exploited",
-                                       support=evidence(description="Test results")),
-                                  goal(description="Vulnerability B is not exploited",
-                                       support=evidence(description="Test results"))
-                              ]
-                              )
+                                                           )
+                            )
 
 if __name__ == '__main__':
-    # n = gsn.pgsn_to_gsn(evidence_class, steps=10000)
-    # print(json.dumps(gsn.python_val(n), sort_keys=True, indent=4))
-    #print(s('sub_goals').fully_eval())
     system_evaluated = system.fully_eval()
-    pprint.pprint(object_term.prettify(system_evaluated))
-    n = gsn.pgsn_to_gsn(system_evaluated, steps=10000)
-    js = json.dumps(gsn.python_val(n), sort_keys=True, indent=4)
-    print(js)
+    pprint.pprint(pgsn.stdlib._uncast(system_evaluated), indent=2)
+    # n = gsn.pgsn_to_gsn(system_evaluated, steps=1)
+    # js = json.dumps(gsn.python_val(n), sort_keys=True, indent=4)
+    # print(js)

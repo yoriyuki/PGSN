@@ -1,7 +1,7 @@
+import pprint
 import sys
-
-sys.path.append("..")
 import json
+from pgsn.stdlib import *
 from pgsn.gsn_term import *
 from pgsn import gsn
 
@@ -36,6 +36,6 @@ cap_a_term = gd3(["C1", "C2", "C3"])
 
 if __name__ == '__main__':
     cap_a_fully_eval = cap_a_term.fully_eval(steps=1000000)
-    print(cap_a_fully_eval)
-    n = gsn.pgsn_to_gsn(cap_a_fully_eval, steps=100000)
-    print(json.dumps(gsn.python_val(n), sort_keys=True, indent=4))
+    pprint.pprint(prettify(cap_a_fully_eval))
+    # n = gsn.pgsn_to_gsn(cap_a_fully_eval, steps=100000)
+    # print(json.dumps(gsn.python_val(n), sort_keys=True, indent=4))

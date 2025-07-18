@@ -49,6 +49,24 @@ def cast(x: Castable, is_named: bool) -> Term:
         case _: assert False
 
 
+class ConstMixin(ABC):
+
+    def _eval_or_none(self) -> Term | None:
+        return None
+
+    def _shift(self, num: int, cutoff: int) -> Term:
+        return self
+
+    def _subst_or_none(self, variable: int, term: Term) -> Term | None:
+        return None
+
+    def _free_variables(self) -> set[str]:
+        return set()
+
+    def _remove_name_with_context(self, context: list[str]) -> Term:
+        return self.evolve(is_named=False)
+
+
 @frozen(kw_only=True, cache_hash=True)
 class Term(ABC):
     # meta_info is always not empty
@@ -358,9 +376,6 @@ class App(Term):
         return self.evolve(t1=nameless_t1, t2=nameless_t2)
 
 
-# leftmost, outermost reduction
-
-
 class Builtin(Term):
     # hack.  the default is an invalid value
     arity: int = field(validator=[helpers.not_none, helpers.non_negative])
@@ -388,54 +403,7 @@ class Builtin(Term):
 
 
 @frozen
-class Constant(Builtin):
-    name: str = field(validator=helpers.not_none)
-    arity = 0
-
-    def _eval_or_none(self) -> Term | None:
-        return None
-
-    def _shift(self, num: int, cutoff: int) -> Term:
-        return self
-
-    def _subst_or_none(self, variable: int, term: Term) -> Term | None:
-        return None
-
-    def _free_variables(self) -> set[str]:
-        return set()
-
-    def _remove_name_with_context(self, context: list[str]) -> Term:
-        return self.evolve(is_named=False)
-
-    def _applicable_args(self, _):
-        return False
-
-    def _apply_args(self, _):
-        assert False
-
-
-# Builtin functions.  Arity is always one.
-@frozen
-class BuiltinFunction(Builtin, ABC):
-
-    def _eval_or_none(self) -> None:
-        return None
-
-    def _shift(self, d, cutoff) -> BuiltinFunction:
-        return self
-
-    def _subst_or_none(self, num, term) -> None:
-        return None
-
-    def _free_variables(self) -> set[str]:
-        return set()
-
-    def _remove_name_with_context(self, context: list[str]) -> Term:
-        return self.evolve(is_named=False)
-
-
-@frozen
-class Unary(BuiltinFunction, ABC):
+class Unary(Builtin, ABC):
     arity = 1
 
     @abstractmethod
@@ -453,76 +421,23 @@ class Unary(BuiltinFunction, ABC):
         return self._apply_arg(args[0])
 
 
-# Evaluation Context
 @frozen
-class Context:
-    head: Term = field(validator=helpers.not_none)
-    args: tuple[Term,...] = field(default=(), validator=helpers.not_none)
+class Constant(ConstMixin, Builtin):
+    arity=0
+    name = field(validator=helpers.not_none)
 
-    @classmethod
-    def build(cls, head, args):
-        if isinstance(head, App):
-            return cls.build(head=head.t1, args=(head.t2,) + args)
-        else:
-            return cls(head=head, args=args)
+    def _applicable_args(self, _):
+        return False
 
-    def evolve(self, head=None, args=None):
-        if head is None:
-            head = self.head
-        if args is None:
-            args = self.args
-        return type(self).build(head=head, args=args)
-
-    def to_term(self) -> Term:
-        term = self.head
-        for arg in self.args:
-            term = term(arg)
-        return term
-
-    def stack(self, arg: Term):
-        return self.evolve(args=self.args + (arg, ))
-
-    # If None is returned, the reduction is terminated
-    # outermost leftmost reduction.
-    def reduce_or_none(self) -> Context | None:
-        if isinstance(self.head, Abs) and len(self.args) > 0:
-            head_substituted = (self.head.t.subst(0, self.args[0].shift(1, 0))
-                                .shift(-1, 0))
-            return self.evolve(head=head_substituted, args=self.args[1:])
-        if isinstance(self.head, BuiltinFunction) and self.head.applicable_args(self.args):
-            reduced, rest = self.head.apply_args(self.args)
-            return self.evolve(head=reduced, args=rest)
-        head_reduced = self.head.eval_or_none()
-        if head_reduced is not None:
-            return self.evolve(head=head_reduced)
-        for i in range(len(self.args)):
-            arg_reduced = self.args[i].eval_or_none()
-            if arg_reduced is not None:
-                new_args = self.args[0:i] + (arg_reduced,) + self.args[i + 1:]
-                return self.evolve(args=new_args)
-        else:
-            return None
+    def _apply_args(self, _):
+        assert False
 
 
 # Builtin data types
 @frozen
-class Data(Builtin, Generic[T], ABC):
+class Data(ConstMixin, Builtin, Generic[T], ABC):
+    arity = 0
     value: T = field(validator=helpers.not_none)
-
-    def _eval_or_none(self):
-        return None
-
-    def _shift(self, d, c):
-        return self
-
-    def _subst_or_none(self, var, term):
-        return None
-
-    def _free_variables(self):
-        return set()
-
-    def _remove_name_with_context(self, _):
-        return type(self).nameless(value=self.value)
 
     def _applicable_args(self, _):
         return False
@@ -589,10 +504,10 @@ class List(Unary):
         return List.nameless(meta_info=self.meta_info,
                              terms=tuple(t.remove_name_with_context(context) for t in self.terms))
 
-    def _applicable(self, term):
-        return isinstance(term, Integer)
+    def _applicable(self, term: Term):
+        return isinstance(term, Integer) and 0 <= term.value < len(self.terms)
 
-    def _apply_arg(self, term):
+    def _apply_arg(self, term: Integer):
         return self.terms[term.value]
 
 
@@ -663,17 +578,20 @@ class Record(Unary):
 @frozen
 class PGSNClass(Unary):
     inherit: PGSNClass | None = field()
+    name: str | None = field()
     _defaults: dict[str, Term] = field(default={}, validator=helpers.not_none)
     _attributes: set[str, ...] = field(default=set(), validator=helpers.not_none)
     _methods: dict[str, Term] = field(default={}, validator=helpers.not_none)
 
     def __attr_post_init__(self):
-        _default = self.inherit.defaults() | self._defaults
         assert all(k in self._attributes for k in self._defaults.keys())
         assert all(name not in self._attributes for name in self._methods.keys())
+        assert not "name" in self._method
+        assert not "name" in self._attributes
 
     @classmethod
     def build(cls, is_named: bool, inherit: PGSNClass | None =None,
+              name: str | None = None,
               defaults: dict[str, Term] | None =None, attributes: set[str, ...] | None = None,
               methods: dict[str, Term] | None = None):
         defaults = helpers.default(defaults, {})
@@ -683,7 +601,7 @@ class PGSNClass(Unary):
             defaults = inherit.defaults() | defaults
             attributes = set(inherit.defaults()) | set(attributes)
             methods = inherit.methods() | methods
-        return cls(is_named=is_named, inherit=inherit, defaults=defaults.copy(), attributes=attributes, methods=methods.copy())
+        return cls(is_named=is_named, name=name, inherit=inherit, defaults=defaults.copy(), attributes=attributes, methods=methods.copy())
 
     def defaults(self):
         return self._defaults.copy()
@@ -696,11 +614,17 @@ class PGSNClass(Unary):
 
     def _evolve(self,
                 is_named: bool | None = None,
+                name: str | None = None,
+                inherit: PGSNClass | None = None,
                 defaults: dict[str, Term] | None = None,
                 attributes: set[str,...] | None = None,
                 methods: dict[str, Term] | None = None):
         if is_named is None:
             is_named = self.is_named
+        if name is None:
+            name = self.name
+        if inherit is None:
+            inherit = self.inherit
         if defaults is None:
             defaults = self.defaults()
         if attributes is None:
@@ -709,9 +633,42 @@ class PGSNClass(Unary):
             methods = self.methods()
         return evolve(self,
                       is_named=is_named,
+                      name=name,
+                      inherit=inherit,
                       defaults=defaults.copy(),
                       attributes=attributes,
                       methods=methods.copy())
+
+    def _traverse(self, visit):
+        if self.inherit is not None:
+            inherit1 = visit(self.inherit)
+        else:
+            inherit1 = None
+        defaults1 = {label: visit(t) for label, t in self.defaults().items()}
+        methods1 = {label: visit(t) for label, t in self.methods().items()}
+        if all(v is None for v in defaults1.values()):
+            if all(v is None for v in methods1.values()):
+                if inherit1 is None:
+                    return None
+        inherit2 = helpers.default(inherit1, self.inherit)
+        defaults2 = {k: helpers.default(defaults1[k], self.defaults()[k]) for k in defaults1.keys()}
+        methods2 = {k: helpers.default(methods1[k], self.methods()[k]) for k in self.methods().keys()}
+        return self.evolve(inherit=inherit2, defaults=defaults2, methods=methods2)
+
+    def _eval_or_none(self):
+        return self._traverse(lambda t: t.eval_or_none())
+
+    def _shift(self, num: int, cutoff: int) -> Term:
+        return helpers.default(self._traverse(lambda t: t.shift(num, cutoff)), self)
+
+    def _subst_or_none(self, variable: int, term: Term) -> Term | None:
+        return self._traverse(lambda t: t.subst_or_none())
+
+    def _free_variables(self) -> set[str]:
+        vars_inherit = self.inherit.free_variables() if self.inherit is not None else set()
+        vars_defaults = set(t.free_variables() for t in self.defaults().values())
+        vars_methods = set(t.free_variables() for t in self.methods().values())
+        return vars_inherit | vars_defaults | vars_methods
 
     def _applicable(self, arg: Term):
         if not isinstance(arg, Record):
@@ -731,7 +688,7 @@ class PGSNClass(Unary):
 
 
 @frozen
-class DefineClass(Unary):
+class DefineClass(ConstMixin, Unary):
 
     def _applicable(self, arg: Term) -> bool:
         if not isinstance(arg, Record):
@@ -741,20 +698,32 @@ class DefineClass(Unary):
             return False
         if not isinstance(params["inherit"], PGSNClass):
             return False
-        if not set(params.keys()) <= {"inherit", "defaults", "attributes", "methods"}:
+        if "name" in params and not isinstance(params["name"], String):
+            return False
+        if not set(params.keys()) <= {"inherit", "name", "defaults", "attributes", "methods"}:
             return False
         if "defaults" in params and not isinstance(params["defaults"], Record):
             return False
         if "attributes" in params and not isinstance(params["attributes"], List):
             return False
-        if "attributes" in params and not all(isinstance(k, String) for k in params["attributes"].terms):
-            return False
-        if "methods" in params and not isinstance(params["methods"], Record):
-            return False
+        if "attributes" in params:
+            if not all(isinstance(k, String) for k in params["attributes"].terms):
+                return False
+            if "name" in (t.value for t in params["attributes"].terms):
+                return False
+        if "methods" in params:
+            if not isinstance(params["methods"], Record):
+                return False
+            if "name" in (t for t in params["methods"].attributes().keys()):
+                return False
         return True
 
     def _apply_arg(self, arg: Record) -> Term:
         inherit: PGSNClass = arg.attributes()["inherit"]
+        if "name" in arg.attributes():
+            name = arg.attributes()["name"].value
+        else:
+            name = None
         if "defaults" in arg.attributes():
             defaults = inherit.defaults()| arg.attributes()["defaults"].attributes()
         else:
@@ -768,7 +737,7 @@ class DefineClass(Unary):
             methods = inherit.methods() | arg.attributes()["methods"].attributes()
         else:
             methods= inherit.methods()
-        return inherit.__class__.nameless(inherit=inherit, defaults=defaults, attributes=set(attributes),
+        return inherit.__class__.nameless(inherit=inherit, name=name, defaults=defaults, attributes=set(attributes),
                                           methods=methods)
 
 def _is_subclass(cls1: PGSNClass, cls2: PGSNClass):
@@ -779,7 +748,7 @@ def _is_subclass(cls1: PGSNClass, cls2: PGSNClass):
     return _is_subclass(cls1.inherit, cls2)
 
 
-class IsSubclass(BuiltinFunction):
+class IsSubclass(ConstMixin, Builtin):
     arity = 2
 
     def _applicable_args(self, args: tuple[Term, ...]) -> bool:
@@ -828,6 +797,34 @@ class PGSNObject(Unary):
                       attributes=attributes,
                       methods=methods)
 
+    def _traverse(self, visit):
+        instance1 = visit(self.instance)
+        attributes1 = {label: visit(t) for label, t in self.attributes().items()}
+        methods1 = {label: visit(t) for label, t in self.methods().items()}
+        if all(v is None for v in attributes1.values()):
+            if all(v is None for v in methods1.values()):
+                if instance1 is None:
+                    return None
+        instance2 = helpers.default(instance1, self.instance)
+        attributes2 = {k: helpers.default(attributes1[k], self.attributes()[k]) for k in attributes1.keys()}
+        methods2 = {k: helpers.default(methods1[k], self.methods()[k]) for k in self.methods().keys()}
+        return self.evolve(instance=instance2, attributes=attributes2, methods=methods2)
+
+    def _eval_or_none(self):
+        return self._traverse(lambda t: t.eval_or_none())
+
+    def _shift(self, num: int, cutoff: int) -> Term:
+        return self._traverse(lambda t: helpers.default(t.shift(num, cutoff), t))
+
+    def _subst_or_none(self, variable: int, term: Term) -> Term | None:
+        return self._traverse(lambda t: t.subst_or_none())
+
+    def _free_variables(self) -> set[str]:
+        vars_instance = self.instance.free_variables()
+        vars_defaults = set(t.free_variables() for t in self.defaults().values())
+        vars_methods = set(t.free_variables() for t in self.methods().values())
+        return vars_instance | vars_defaults | vars_methods
+
     def _applicable(self, arg: Term):
         if not isinstance(arg, String):
             return False
@@ -847,7 +844,7 @@ class PGSNObject(Unary):
 
 
 @frozen
-class Instance(Unary):
+class Instance(ConstMixin, Unary):
 
     def _applicable(self, arg: Term) -> bool:
         if isinstance(arg, PGSNObject):
@@ -857,3 +854,55 @@ class Instance(Unary):
 
     def _apply_arg(self, arg: PGSNObject) -> Term:
         return arg.instance
+
+
+# Evaluation Context
+# leftmost, outermost reduction
+@frozen
+class Context:
+    head: Term = field(validator=helpers.not_none)
+    args: tuple[Term, ...] = field(default=(), validator=helpers.not_none)
+
+    @classmethod
+    def build(cls, head, args):
+        if isinstance(head, App):
+            return cls.build(head=head.t1, args=(head.t2,) + args)
+        else:
+            return cls(head=head, args=args)
+
+    def evolve(self, head=None, args=None):
+        if head is None:
+            head = self.head
+        if args is None:
+            args = self.args
+        return type(self).build(head=head, args=args)
+
+    def to_term(self) -> Term:
+        term = self.head
+        for arg in self.args:
+            term = term(arg)
+        return term
+
+    def stack(self, arg: Term):
+        return self.evolve(args=self.args + (arg,))
+
+    # If None is returned, the reduction is terminated
+    # outermost leftmost reduction.
+    def reduce_or_none(self) -> Context | None:
+        if isinstance(self.head, Abs) and len(self.args) > 0:
+            head_substituted = (self.head.t.subst(0, self.args[0].shift(1, 0))
+                                .shift(-1, 0))
+            return self.evolve(head=head_substituted, args=self.args[1:])
+        if isinstance(self.head, Builtin) and self.head.applicable_args(self.args):
+            reduced, rest = self.head.apply_args(self.args)
+            return self.evolve(head=reduced, args=rest)
+        head_reduced = self.head.eval_or_none()
+        if head_reduced is not None:
+            return self.evolve(head=head_reduced)
+        for i in range(len(self.args)):
+            arg_reduced = self.args[i].eval_or_none()
+            if arg_reduced is not None:
+                new_args = self.args[0:i] + (arg_reduced,) + self.args[i + 1:]
+                return self.evolve(args=new_args)
+        else:
+            return None

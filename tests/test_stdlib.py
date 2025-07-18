@@ -149,7 +149,7 @@ def test_record():
     assert stdlib.overwrite_record(r)(r2)(b).fully_eval().value == 2
 
 
-class Id(pgsn_term.Unary):
+class Id(pgsn_term.ConstMixin, pgsn_term.Unary):
     arity = 1
 
     def _applicable(self, args):

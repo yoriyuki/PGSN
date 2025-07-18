@@ -51,7 +51,7 @@ def test_pgsn_term_higher_order():
     assert t.fully_eval() == c.fully_eval()
 
 
-class Id(pgsn_term.Unary):
+class Id(pgsn_term.ConstMixin, pgsn_term.Unary):
     arity = 1
 
     def _applicable(self, args):

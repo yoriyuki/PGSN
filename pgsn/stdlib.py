@@ -2,8 +2,8 @@ from __future__ import annotations
 from pgsn import helpers, pgsn_term
 from typing import Sequence, Any
 from attrs import frozen, evolve, field
-from pgsn.pgsn_term import BuiltinFunction, Term, Unary, Variable, Abs, App, String, Integer, \
-    Boolean, List, Record, Constant, PGSNClass, PGSNObject, DefineClass, Instance, IsSubclass
+from pgsn.pgsn_term import Builtin, Term, Unary, Variable, Abs, App, String, Integer, \
+    Boolean, List, Record, ConstMixin, PGSNClass, PGSNObject, DefineClass, Instance, IsSubclass, Data, Constant
 
 
 def check_type_list(arg: Term, types: list):
@@ -21,7 +21,7 @@ def check_type_dict(arg: Term, types: dict):
 # List functions
 
 @frozen
-class Cons(BuiltinFunction):
+class Cons(ConstMixin, Builtin):
     arity = 2
 
     def _applicable_args(self, args: Sequence[Term]):
@@ -31,7 +31,7 @@ class Cons(BuiltinFunction):
         return evolve(args[1], terms=(args[0],) + args[1].terms)
 
 @frozen
-class Head(Unary):
+class Head(ConstMixin, Unary):
 
     def _applicable(self, arg: Term):
         return isinstance(arg, List) and len(arg.terms) >= 1
@@ -40,7 +40,7 @@ class Head(Unary):
         return arg.terms[0]
 
 @frozen
-class Tail(Unary):
+class Tail(ConstMixin, Unary):
 
     def _applicable(self, arg: Term):
         return isinstance(arg, List) and len(arg.terms) >= 1
@@ -49,7 +49,7 @@ class Tail(Unary):
         return List(terms=arg.terms[1:], is_named=self.is_named)
 
 
-class Index(BuiltinFunction):
+class Index(ConstMixin, Builtin):
     arity = 2
 
     def _applicable_args(self, args: Sequence[Term]):
@@ -60,7 +60,7 @@ class Index(BuiltinFunction):
 
 
 @frozen
-class Fold(BuiltinFunction):
+class Fold(ConstMixin, Builtin):
     arity = 3
 
     def _applicable_args(self, args: Sequence[Term]):
@@ -83,7 +83,7 @@ class Fold(BuiltinFunction):
 
 
 @frozen
-class Map(BuiltinFunction):
+class Map(ConstMixin, Builtin):
     arity = 2
 
     def _applicable_args(self, args: Sequence[Term]):
@@ -102,7 +102,7 @@ class Map(BuiltinFunction):
 
 # Integer functions
 @frozen
-class Plus(BuiltinFunction):
+class Plus(ConstMixin, Builtin):
     arity = 2
 
     def _applicable_args(self, args: tuple[Term, ...]):
@@ -114,76 +114,7 @@ class Plus(BuiltinFunction):
         return pgsn_term.Integer.nameless(value=i1 + i2)
 
 
-# multi_arg function
-@frozen
-class MultiArgFunction(BuiltinFunction):
-    # Hack: arity has a default argument but the default value is invalid.
-    # The object must be created by build class method.
-    arity = field(default=0)
-    _keyword_args: dict[str, Term | None] = field(default={})
-    # Hack: syntactically, body is an optional argument but must be specified otherwise
-    # the runtime error occurs.
-    main: Term | None = field(default=None, validator=helpers.not_none)
-
-    def __attr_post_init__(self):
-        assert all((var.is_named == self.is_named for var in self.positional_variable))
-        assert all((var.is_named == self.is_named for var  in self._keyword_variable.keys()))
-        assert all((t is None or t.is_named == self.is_named for _, t in self._keyword_variable.items()))
-        assert self.main is not None
-        assert self.arity >= 1
-
-    @classmethod
-    def build(cls,
-              is_named: bool,
-              positional_vars: tuple[Variable, ...],
-              keyword_args: dict[str, Term | None],
-              body: Term):
-        keywords = sorted(keyword_args.keys())
-        main = body
-        for key in keywords:
-            var = variable(key)
-            main = lambda_abs(var, main)
-        var_r = variable('r')
-        for key in reversed(keywords):
-            s = string(key)
-            main = main(var_r(s))
-        main = lambda_abs(var_r, main)
-        for var in reversed(positional_vars):
-            main = lambda_abs(var, main)
-        return cls(is_named=is_named,
-                   arity=len(positional_vars) + 1,
-                   keyword_args=keyword_args.copy(),
-                   main=main)
-
-    def _remove_name_with_context(self, context: list[str]) -> Term:
-        keyword_args = {k: t.remove_name_with_context(context) if t is not None else None for k, t in self._keyword_args.items()}
-        main = self.main.remove_name_with_context(context)
-        return self.evolve(is_named=False, keyword_args=keyword_args, main=main)
-
-    def _applicable_args(self, args: tuple[Term,...]) -> bool:
-        if not isinstance(args[self.arity-1], Record):
-            return False
-        r = args[self.arity-1].attributes()
-        for k, v in self._keyword_args.items():
-            if v is None and k not in r:
-                return False
-        return True
-
-    def _apply_args(self, args: tuple[Term,...]):
-        r = args[self.arity - 1].attributes()
-        for k, v in self._keyword_args.items():
-            if k not in r and v is not None:
-                r[k] = v
-        assert set(self._keyword_args.keys()).issubset(set(r.keys()))
-        assert all(v is not None for v in r.values())
-        r_term = Record.nameless(attributes=r)
-        t = self.main
-        for arg in args[:-1]:
-            t = t(arg)
-        return t(r_term)
-
-
-class IfThenElse(BuiltinFunction):
+class IfThenElse(ConstMixin, Builtin):
     arity = 3
 
     def _applicable_args(self, terms: tuple[Term,...]):
@@ -198,7 +129,7 @@ class IfThenElse(BuiltinFunction):
 
 
 # guard b t only progresses b is true
-class Guard(BuiltinFunction):
+class Guard(ConstMixin, Builtin):
     arity=2
 
     def _applicable_args(self, terms: tuple[Term,...]):
@@ -209,7 +140,7 @@ class Guard(BuiltinFunction):
 
 
 # Comparison. does not compare App and Abs
-class Equal(BuiltinFunction):
+class Equal(ConstMixin, Builtin):
     arity = 2
 
     def _applicable_args(self, args: tuple[Term,...]):
@@ -219,7 +150,7 @@ class Equal(BuiltinFunction):
         return Boolean.build(is_named=self.is_named, value=args[0] == args[1])
 
 
-class HasLabel(BuiltinFunction):
+class HasLabel(ConstMixin, Builtin):
     arity = 2
 
     def _applicable_args(self, terms: tuple[Term,...]):
@@ -231,7 +162,7 @@ class HasLabel(BuiltinFunction):
         return Boolean.build(is_named=self.is_named, value=b)
 
 
-class AddAttribute(BuiltinFunction):
+class AddAttribute(ConstMixin, Builtin):
     arity = 3
 
     def _applicable_args(self, terms: tuple[Term,...]):
@@ -243,7 +174,7 @@ class AddAttribute(BuiltinFunction):
         return Record.build(is_named=self.is_named, attributes=attrs)
 
 
-class RemoveAttribute(BuiltinFunction):
+class RemoveAttribute(ConstMixin, Builtin):
     arity = 2
 
     def _applicable_args(self, terms: tuple[Term,...]):
@@ -255,7 +186,7 @@ class RemoveAttribute(BuiltinFunction):
         return Record.build(is_named=self.is_named, attributes=attrs)
 
 
-class ListLabels(Unary):
+class ListLabels(ConstMixin, Unary):
 
     def _applicable(self, term: Term):
         return isinstance(term, Record)
@@ -265,7 +196,7 @@ class ListLabels(Unary):
         return pgsn_term.List.build(is_named=self.is_named, terms=tuple(labels))
 
 
-class OverwriteRecord(BuiltinFunction):
+class OverwriteRecord(ConstMixin, Builtin):
     arity = 2
 
     def _applicable_args(self, terms: tuple[Term,...]):
@@ -283,9 +214,15 @@ class OverwriteRecord(BuiltinFunction):
 Printable = String | Integer
 
 
-def _uncast(t: Term):
+def _uncast(t: Term) -> Any:
     match t:
         case pgsn_term.Data():
+            return t.value
+        case String():
+            return t.value
+        case Integer():
+            return t.value
+        case Boolean():
             return t.value
         case List():
             terms = t.terms
@@ -293,11 +230,17 @@ def _uncast(t: Term):
         case Record():
             attr = t.attributes()
             return {k: value_of(t1) for k, t1 in attr.items()}
+        case PGSNObject():
+            attr = t.attributes()
+            cls_name = t.instance.name
+            attrs =  {k: value_of(t1) for k, t1 in attr.items()}
+            attrs["__" + cls_name + "__"] = True
+            return attrs
         case _:
             raise ValueError(f'PGSN term {type(t)} does not normalizes a Python value')
 
 
-class Formatter(BuiltinFunction):
+class Formatter(ConstMixin, Builtin):
     arity = 2
 
     def _applicable_args(self, terms: tuple[Term,...]):
@@ -342,7 +285,7 @@ _f = variable('f')
 _label = variable('label')
 
 
-def constant(name: str) -> Constant:
+def constant(name: str) -> ConstMixin:
     return Constant.named(name=name)
 
 
@@ -494,6 +437,7 @@ def value_of(term: Term, steps=1000) -> Any:
 ### internal variables
 _obj = variable("_obj")
 _class = variable("_class")
+_attrs = variable("_attrs")
 
 ### OO programming
 ClassTerm = PGSNClass
@@ -502,7 +446,7 @@ ObjectTerm = PGSNObject
 ## Class
 
 # inheritance
-base_class = PGSNClass.named()
+base_class = PGSNClass.named(name="BaseClass")
 define_class = DefineClass.named()
 
 # subclass
@@ -511,5 +455,10 @@ is_subclass = IsSubclass.named()
 ## Objects
 instance = Instance.named()
 is_instance = lambda_abs_vars((_obj, _class), is_subclass(instance(_obj))(_class))
+instantiate = lambda_abs_vars((_class, _attrs), _class(_attrs))
+
+
+def prettify(obs: Term):
+    return _uncast(obs)
 
 

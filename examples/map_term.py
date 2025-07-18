@@ -1,5 +1,6 @@
 from pprint import pprint
 
+from pgsn.stdlib import *
 from pgsn.gsn_term import *
 
 requirements = ["Firewall enabled", "Encrypted communication", "Access control active"]
