@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from email.policy import default
 from typing import TypeAlias, Generic
 from abc import ABC, abstractmethod
 
@@ -54,8 +56,8 @@ class ConstMixin(ABC):
     def _eval_or_none(self) -> Term | None:
         return None
 
-    def _shift(self, num: int, cutoff: int) -> Term:
-        return self
+    def _shift_or_none(self, num: int, cutoff: int) -> Term | None:
+        return None
 
     def _subst_or_none(self, variable: int, term: Term) -> Term | None:
         return None
@@ -132,14 +134,19 @@ class Term(ABC):
         raise LambdaInterpreterError('Reduction did not terminate', t)
 
     @abstractmethod
-    def _shift(self, num: int, cutoff: int) -> Term:
+    def _shift_or_none(self, num: int, cutoff: int) -> Term | None:
         pass
 
-    def shift(self, num: int, cutoff: int) -> Term:
+    def shift_or_none(self, num: int, cutoff: int) -> Term | None:
         assert not self.is_named
-        shifted = self._shift(num, cutoff)
+        shifted = self._shift_or_none(num, cutoff)
+        if shifted is None:
+            return None
         assert not shifted.is_named
         return shifted
+
+    def shift(self, num: int, cutoff: int) -> Term:
+        return helpers.default(self.shift_or_none(num, cutoff), self)
 
     @abstractmethod
     def _subst_or_none(self, variable: int, term: Term) -> Term | None:
@@ -234,9 +241,9 @@ class Variable(Term):
     def _eval_or_none(self):
         return None
 
-    def _shift(self, d, cutoff):
+    def _shift_or_none(self, d, cutoff):
         if self.num < cutoff:
-            return self
+            return None
         else:
             return self.evolve(num=self.num+d)
 
@@ -282,11 +289,15 @@ class Abs(Term):
         t_evaluated = self.t.eval_or_none()
         return None if t_evaluated is None else self.evolve(t=t_evaluated)
 
-    def _shift(self, num: int, cutoff: int) -> Term:
-        return self.evolve(t=self.t.shift(num, cutoff + 1))
+    def _shift_or_none(self, num: int, cutoff: int) -> Term | None:
+        t_shifted = self.t.shift_or_none(num, cutoff + 1)
+        if t_shifted is None:
+            return None
+        return self.evolve(t=t_shifted)
 
     def _subst_or_none(self, var: int, term: Term) -> Term | None:
-        term_shifted = term.shift(1, 0)
+        term_shifted_or_none = term.shift_or_none(1, 0)
+        term_shifted = helpers.default(term_shifted_or_none, term)
         substituted = self.t.subst_or_none(var + 1, term_shifted)
         if substituted is None:
             return None
@@ -305,6 +316,9 @@ class Abs(Term):
 
 @frozen
 class App(Term):
+    def _shit_or_none(self, num: int, cutoff: int) -> Term | None:
+        pass
+
     t1: Term = field(validator=helpers.not_none)
     t2: Term = field(validator=helpers.not_none)
 
@@ -357,8 +371,14 @@ class App(Term):
         else:
             return c_reduced.to_term()
 
-    def _shift(self, num: int, cutoff: int) -> Term:
-        return self.evolve(t1=self.t1.shift(num, cutoff), t2=self.t2.shift(num, cutoff))
+    def _shift_or_none(self, num: int, cutoff: int) -> Term | None:
+        t1_shifted_or_none = self.t1.shift_or_none(num, cutoff)
+        t2_shifted_or_none = self.t1.shift_or_none(num, cutoff)
+        if t1_shifted_or_none is None and t2_shifted_or_none is None:
+            return None
+        t1_shifted = helpers.default(t1_shifted_or_none, self.t1)
+        t2_shifted = helpers.default(t2_shifted_or_none, self.t2)
+        return self.evolve(t1=t1_shifted, t2=t2_shifted)
 
     def _subst_or_none(self, var: int, term: Term) -> Term | None:
         t1_subst = self.t1.subst(var, term)
@@ -423,6 +443,9 @@ class Unary(Builtin, ABC):
 
 @frozen
 class Constant(ConstMixin, Builtin):
+    def _shift_or_none(self, num: int, cutoff: int) -> Term | None:
+        pass
+
     arity=0
     name = field(validator=helpers.not_none)
 
@@ -485,8 +508,11 @@ class List(Unary):
             evaluated_expanded = (x[0] if x[1] is None else x[1] for x in zip(self.terms, evaluated))
             return self.evolve(terms=tuple(evaluated_expanded))
 
-    def _shift(self, d, c):
-        shifted = [t.shift(d, c) for t in self.terms]
+    def _shift_or_none(self, d, c):
+        shifted_or_none = [t.shift_or_none(d, c) for t in self.terms]
+        if all(s is None for s in shifted_or_none):
+            return None
+        shifted = (helpers.default(shifted_or_none[i], self.terms[i]) for i in range(len(self.terms)))
         return self.evolve(terms=tuple(shifted))
 
     def _subst_or_none(self, num, term):
@@ -545,8 +571,11 @@ class Record(Unary):
                     evaluated_expand[k] = self.attributes()[k]
             return self.evolve(attributes=evaluated_expand)
 
-    def _shift(self, d, c):
-        shifted = dict((label, t.shift(d, c)) for label, t in self.attributes().items())
+    def _shift_or_none(self, d, c):
+        shifted_or_none = dict((label, t.shift(d, c)) for label, t in self.attributes().items())
+        if all(s is None for s in shifted_or_none.values()):
+            return None
+        shifted = {k: helpers.default(v, self.attributes()[k]) for k, v in self.attributes().items()}
         return self.evolve(attributes=shifted)
 
     def _subst_or_none(self, num, term):
@@ -658,8 +687,8 @@ class PGSNClass(Unary):
     def _eval_or_none(self):
         return self._traverse(lambda t: t.eval_or_none())
 
-    def _shift(self, num: int, cutoff: int) -> Term:
-        return helpers.default(self._traverse(lambda t: t.shift(num, cutoff)), self)
+    def _shift_or_none(self, num: int, cutoff: int) -> Term | None:
+        return self._traverse(lambda t: t.shift_or_none(num, cutoff))
 
     def _subst_or_none(self, variable: int, term: Term) -> Term | None:
         return self._traverse(lambda t: t.subst_or_none())
@@ -812,6 +841,9 @@ class PGSNObject(Unary):
 
     def _eval_or_none(self):
         return self._traverse(lambda t: t.eval_or_none())
+
+    def _shift_or_none(self, num: int, cutoff: int) -> Term | None:
+        return self._traverse(lambda t: t.shift_or_none(num, cutoff))
 
     def _shift(self, num: int, cutoff: int) -> Term:
         return self._traverse(lambda t: helpers.default(t.shift(num, cutoff), t))
