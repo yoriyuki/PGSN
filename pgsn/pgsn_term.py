@@ -621,10 +621,10 @@ class PGSNClass(Unary):
     @classmethod
     def build(cls, is_named: bool, inherit: PGSNClass | None =None,
               name: str | None = None,
-              defaults: dict[str, Term] | None =None, attributes: set[str, ...] | None = None,
+              defaults: dict[str, Term] | None =None, attributes: set[str] | None = None,
               methods: dict[str, Term] | None = None):
         defaults = helpers.default(defaults, {})
-        attributes = helpers.default(attributes, {})
+        attributes = helpers.default(attributes, set())
         methods = helpers.default(methods, {})
         if inherit is not None:
             defaults = inherit.defaults() | defaults
