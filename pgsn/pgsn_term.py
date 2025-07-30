@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from email.policy import default
-from typing import TypeAlias, Generic
+import json
+import functools
+from typing import TypeAlias
 from abc import ABC, abstractmethod
-
-from attr import attributes
-from attrs import field, frozen, evolve
 from typing import TypeVar
+from attrs import field, frozen, evolve
+from cattrs.strategies import include_subclasses, configure_tagged_union
+from cattrs import Converter, unstructure
+import cattrs.preconf.json
 from pgsn import helpers
+
 
 Term: TypeAlias = "Term"
 T = TypeVar('T')
@@ -319,8 +322,8 @@ class App(Term):
     def _shit_or_none(self, num: int, cutoff: int) -> Term | None:
         pass
 
-    t1: Term = field(validator=helpers.not_none)
-    t2: Term = field(validator=helpers.not_none)
+    t1: Term = field(validator=helpers.is_instance(Term))
+    t2: Term = field(validator=helpers.is_instance(Term))
 
     @t1.validator
     def _check_t1(self, _, v):
@@ -443,12 +446,12 @@ class Unary(Builtin, ABC):
 
 @frozen
 class Constant(ConstMixin, Builtin):
-    def _shift_or_none(self, num: int, cutoff: int) -> Term | None:
-        pass
-
     arity=0
     name = field(validator=helpers.not_none)
 
+    def _shift_or_none(self, num: int, cutoff: int) -> Term | None:
+        pass
+
     def _applicable_args(self, _):
         return False
 
@@ -456,11 +459,10 @@ class Constant(ConstMixin, Builtin):
         assert False
 
 
-# Builtin data types
 @frozen
-class Data(ConstMixin, Builtin, Generic[T], ABC):
+class String(ConstMixin, Builtin):
     arity = 0
-    value: T = field(validator=helpers.not_none)
+    value: str = field(validator=helpers.not_none)
 
     def _applicable_args(self, _):
         return False
@@ -469,11 +471,16 @@ class Data(ConstMixin, Builtin, Generic[T], ABC):
         assert False
 
 
-class String(Data[str]):
-    pass
+@frozen
+class Integer(ConstMixin, Builtin):
+    arith = 0
+    value: int = field(validator=helpers.not_none)
 
+    def _applicable_args(self, _):
+        return False
 
-class Integer(Data[int]):
+    def _apply_args(self, _):
+        assert False
 
     @classmethod
     def nameless_from_str(cls, string):
@@ -488,8 +495,16 @@ class Integer(Data[int]):
         return cls.named(value=int(string))
 
 
-class Boolean(Data[bool]):
-    pass
+@frozen
+class Boolean(ConstMixin, Builtin):
+    arith = 0
+    value: bool = field(validator=helpers.not_none)
+
+    def _applicable_args(self, _):
+        return False
+
+    def _apply_args(self, _):
+        assert False
 
 
 @frozen
@@ -766,7 +781,7 @@ class DefineClass(ConstMixin, Unary):
             methods = inherit.methods() | arg.attributes()["methods"].attributes()
         else:
             methods= inherit.methods()
-        return inherit.__class__.nameless(inherit=inherit, name=name, defaults=defaults, attributes=set(attributes),
+        return PGSNClass.nameless(inherit=inherit, name=name, defaults=defaults, attributes=set(attributes),
                                           methods=methods)
 
 def _is_subclass(cls1: PGSNClass, cls2: PGSNClass):
@@ -777,6 +792,7 @@ def _is_subclass(cls1: PGSNClass, cls2: PGSNClass):
     return _is_subclass(cls1.inherit, cls2)
 
 
+@frozen
 class IsSubclass(ConstMixin, Builtin):
     arity = 2
 
@@ -938,3 +954,18 @@ class Context:
                 return self.evolve(args=new_args)
         else:
             return None
+
+
+json_term_converter = cattrs.preconf.json.make_converter()
+union_strategy = functools.partial(configure_tagged_union, tag_name="type_name")
+include_subclasses(Term, json_term_converter, union_strategy=union_strategy)
+
+
+def json_dumps(t: Term, **kwargs) -> str:
+    d = json_term_converter.unstructure(t, unstructure_as=Term)
+    return json.dumps(d, **kwargs)
+
+
+def json_loads(s: str, **kwargs) -> Term:
+    d = json.loads(s, **kwargs)
+    return json_term_converter.structure(d, Term)

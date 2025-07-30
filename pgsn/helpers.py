@@ -6,6 +6,10 @@ def non_negative(instance, attribute, value):
     assert value >= 0
 
 
+def is_instance(typ):
+    return lambda instance,attribute, value: isinstance(value, typ)
+
+
 def fun_with_arity_n (f, n):
     if not callable(f):
         return False
