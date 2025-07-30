@@ -3,7 +3,7 @@ from pgsn import helpers, pgsn_term
 from typing import Sequence, Any
 from attrs import frozen, evolve, field
 from pgsn.pgsn_term import Builtin, Term, Unary, Variable, Abs, App, String, Integer, \
-    Boolean, List, Record, ConstMixin, PGSNClass, PGSNObject, DefineClass, Instance, IsSubclass, Data, Constant
+    Boolean, List, Record, ConstMixin, PGSNClass, PGSNObject, DefineClass, Instance, IsSubclass, Constant
 
 
 def check_type_list(arg: Term, types: list):
