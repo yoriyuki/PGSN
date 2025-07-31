@@ -1,6 +1,7 @@
 from pprint import pprint
 
 from pgsn import *
+from pgsn import prettify
 
 # Define a custom subclass of Goal
 CustomGoal = define_class(inherit=goal_class, name="GoalWithProject", attributes=["project"])
