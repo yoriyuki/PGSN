@@ -7,7 +7,7 @@ gsn_class = pgsn.stdlib.define_class(inherit=pgsn.stdlib.base_class,
                                      attributes=["description"])
 
 support_class = pgsn.stdlib.define_class(inherit=gsn_class, name='Support')
-undeveloped = support_class(description='Undeveloped', name='Undeveloped')
+undeveloped = support_class(description='Undeveloped')
 evidence_class = pgsn.stdlib.define_class(inherit=support_class, name='Evidence')
 strategy_class = pgsn.stdlib.define_class(inherit=support_class, name='Strategy',
                                           attributes=["sub_goals"])
