@@ -1,3 +1,5 @@
+from pgsn import prettifyfrom pgsn import prettify
+
 # PGSN: Programmable Goal Structuring Notation
 
 アシュアランスケース生成のための関数型プログラミング環境

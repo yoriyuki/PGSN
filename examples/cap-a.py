@@ -3,7 +3,7 @@ import sys
 import json
 from pgsn.stdlib import *
 from pgsn.gsn_term import *
-from pgsn import gsn
+from pgsn import gsn, prettify
 
 y = variable('y')
 xs = variable('xs')
