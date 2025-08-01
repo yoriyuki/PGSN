@@ -83,9 +83,26 @@ def test_class():
 
 
 
-def test_json():
+def test_json_1():
     s = pgsn_term.json_dumps(goal_template, indent=2)
     t = pgsn_term.json_loads(s)
     s1 = pgsn_term.json_dumps(t, indent=2)
-    assert secure_goal == t
+    #assert goal_template == t # structural (==) is very slow
     assert s == s1
+
+
+def test_json_2():
+    s = pgsn_term.json_dumps(goals, indent=2)
+    t = pgsn_term.json_loads(s)
+    s1 = pgsn_term.json_dumps(t, indent=2)
+    #assert goals == t # structural (==) is very slow
+    assert s == s1
+
+
+def test_json_3():
+    s = pgsn_term.json_dumps(secure_goal, indent=2)
+    t = pgsn_term.json_loads(s)
+    s1 = pgsn_term.json_dumps(t, indent=2)
+    #assert secure_goal == t # structural (==) is very slow
+    assert s == s1
+

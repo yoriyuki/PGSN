@@ -1132,8 +1132,6 @@ def value_of(term: Term, steps=1000) -> Any:
 
 def to_python(t: Term) -> Any:
     match t:
-        case Data():
-            return t.value
         case String():
             return t.value
         case Integer():
