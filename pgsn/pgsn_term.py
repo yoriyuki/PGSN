@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from typing import TypeAlias, Generic, Any
 import json
 import functools
 from typing import TypeAlias
 from abc import ABC, abstractmethod
+
+from attrs import field, frozen, evolve
+from typing import TypeVar, Any
 from typing import TypeVar
 from attrs import field, frozen, evolve
 from cattrs.strategies import include_subclasses, configure_tagged_union
@@ -322,8 +326,8 @@ class App(Term):
     def _shit_or_none(self, num: int, cutoff: int) -> Term | None:
         pass
 
-    t1: Term = field(validator=helpers.is_instance(Term))
-    t2: Term = field(validator=helpers.is_instance(Term))
+    t1: Term = field(validator=helpers.not_none)
+    t2: Term = field(validator=helpers.not_none)
 
     @t1.validator
     def _check_t1(self, _, v):
@@ -336,9 +340,9 @@ class App(Term):
     @classmethod
     def term(cls, t1: Term, t2: Term):
         if t1.is_named and t2.is_named:
-            return cls.named(t1, t2)
+            return cls.named(t1=t1, t2=t2)
         elif not t1.is_named and not t2.is_named:
-            return cls.nameless(t1, t2)
+            return cls.nameless(t1=t1, t2=t2)
         else:
             assert False
 
@@ -903,6 +907,257 @@ class Instance(ConstMixin, Unary):
     def _apply_arg(self, arg: PGSNObject) -> Term:
         return arg.instance
 
+
+## Builtin Functions
+
+# List functions
+
+@frozen
+class Cons(ConstMixin, Builtin):
+    arity = 2
+
+    def _applicable_args(self, args: tuple[Term,...]):
+        return isinstance(args[1], List)
+
+    def _apply_args(self, args: tuple[Term, List]):
+        return evolve(args[1], terms=(args[0],) + args[1].terms)
+
+@frozen
+class Head(ConstMixin, Unary):
+
+    def _applicable(self, arg: Term):
+        return isinstance(arg, List) and len(arg.terms) >= 1
+
+    def _apply_arg(self, arg: List) -> Term:
+        return arg.terms[0]
+
+@frozen
+class Tail(ConstMixin, Unary):
+
+    def _applicable(self, arg: Term):
+        return isinstance(arg, List) and len(arg.terms) >= 1
+
+    def _apply_arg(self, arg: List) -> List:
+        return List(terms=arg.terms[1:], is_named=self.is_named)
+
+
+class Index(ConstMixin, Builtin):
+    arity = 2
+
+    def _applicable_args(self, args: tuple[Term,...]):
+        return isinstance(args[0], List) and isinstance(args[1], Integer)
+
+    def _apply_args(self, args: tuple[Term,...]) -> Term:
+        return args[0].terms[args[1].value]
+
+
+@frozen
+class Fold(ConstMixin, Builtin):
+    arity = 3
+
+    def _applicable_args(self, args: tuple[Term,...]):
+        if not len(args) >= 3:
+            return False
+        if not isinstance(args[2], List):
+            return False
+        return True
+    def _apply_args(self, args: tuple[Term,...]) -> Term:
+        fun = args[0]
+        init = args[1]
+        arg_list = args[2].terms
+        if len(arg_list) == 0:
+            return init
+        list_head = arg_list[0]
+        list_rest = arg_list[1:]
+        rest = List(terms=list_rest, is_named=self.is_named)
+        return fun(list_head)(self(fun)(init)(rest))
+
+
+@frozen
+class Map(ConstMixin, Builtin):
+    arity = 2
+
+    def _applicable_args(self, args: tuple[Term,...]):
+        if not isinstance(args[1], List):
+            return False
+        return True
+
+    def _apply_args(self, args: tuple[Term,...]) -> Term:
+        fun = args[0]
+        arg = args[1]
+        arg_list = arg.terms
+        map_list = tuple((fun(t) for t in arg_list))
+        map_result = List(terms=map_list, is_named=self.is_named)
+        return map_result
+
+
+# Integer functions
+@frozen
+class Plus(ConstMixin, Builtin):
+    arity = 2
+
+    def _applicable_args(self, args: tuple[Term, ...]):
+        return len(args) >= 2 and isinstance(args[0], Integer) and isinstance(args[1], Integer)
+
+    def _apply_args(self, args: tuple[Term, ...]):
+        i1 = args[0].value
+        i2 = args[1].value
+        return Integer.nameless(value=i1 + i2)
+
+
+class IfThenElse(ConstMixin, Builtin):
+    arity = 3
+
+    def _applicable_args(self, terms: tuple[Term,...]):
+        return isinstance(terms[0], Boolean) or isinstance(terms[0], Integer)
+
+    def _apply_args(self, terms: tuple[Term,...]):
+        b = terms[0].value
+        if isinstance(b, bool):
+            return terms[1] if b else terms[2]
+        if isinstance(b, int):
+            return terms[1] if b > 0 else terms[2]
+
+
+# guard b t only progresses b is true
+class Guard(ConstMixin, Builtin):
+    arity=2
+
+    def _applicable_args(self, terms: tuple[Term,...]):
+        return isinstance(terms[0], Boolean) and terms[0].value
+
+    def _apply_args(self, terms: tuple[Term,...]):
+        return terms[1]
+
+
+# Comparison. does not compare App and Abs
+class Equal(ConstMixin, Builtin):
+    arity = 2
+
+    def _applicable_args(self, args: tuple[Term,...]):
+        return all((not isinstance(arg, App) and not isinstance(arg, Abs) for arg in args))
+
+    def _apply_args(self, args: tuple[Term,...]):
+        return Boolean.build(is_named=self.is_named, value=args[0] == args[1])
+
+
+class HasLabel(ConstMixin, Builtin):
+    arity = 2
+
+    def _applicable_args(self, terms: tuple[Term,...]):
+        return isinstance(terms[0], Record) and isinstance(terms[1], String)
+
+    def _apply_args(self, terms: tuple[Record, String]):
+        k = terms[1].value
+        b = k in terms[0].attributes()
+        return Boolean.build(is_named=self.is_named, value=b)
+
+
+class AddAttribute(ConstMixin, Builtin):
+    arity = 3
+
+    def _applicable_args(self, terms: tuple[Term,...]):
+        return isinstance(terms[0], Record) and isinstance(terms[1], String)
+
+    def _apply_args(self, terms: tuple[Term,...]):
+        attrs = terms[0].attributes()
+        attrs[terms[1].value] = terms[2]
+        return Record.build(is_named=self.is_named, attributes=attrs)
+
+
+class RemoveAttribute(ConstMixin, Builtin):
+    arity = 2
+
+    def _applicable_args(self, terms: tuple[Term,...]):
+        return isinstance(terms[0], Record) and isinstance(terms[1], String)
+
+    def _apply_args(self, terms: tuple[Term,...]):
+        attrs = terms[0].attributes()
+        del attrs[terms[1].value]
+        return Record.build(is_named=self.is_named, attributes=attrs)
+
+
+class ListLabels(ConstMixin, Unary):
+
+    def _applicable(self, term: Term):
+        return isinstance(term, Record)
+
+    def _apply_arg(self, term: Term):
+        labels = map(lambda l: String(is_named=self.is_named, value=l), term.attributes())
+        return List.build(is_named=self.is_named, terms=tuple(labels))
+
+
+class OverwriteRecord(ConstMixin, Builtin):
+    arity = 2
+
+    def _applicable_args(self, terms: tuple[Term,...]):
+        return isinstance(terms[0], Record) and isinstance(terms[1], Record)
+
+    def _apply_args(self, terms: tuple[Term,...]):
+        r1 = terms[0].attributes()
+        r2 = terms[1].attributes()
+        r = r1
+        for k, t in r2.items():
+            r[k] = t
+        return Record.build(is_named=self.is_named, attributes=r)
+
+
+class Formatter(ConstMixin, Builtin):
+    arity = 2
+
+    def _applicable_args(self, terms: tuple[Term,...]):
+        if not len(terms) == 2:
+            return False
+        if not isinstance(terms[0], String):
+            return False
+        if not isinstance(terms[1], Record):
+            return False
+        try:
+            python_vals = to_python(terms[1])
+            _ = terms[0].value.format(**python_vals)
+            return True
+        except (KeyError, TypeError, ValueError):
+            return False
+
+    def _apply_args(self, terms: tuple[Term,...]):
+        python_vals = to_python(terms[1])
+        return String.build(is_named=self.is_named, value=terms[0].value.format(**python_vals))
+
+
+
+def value_of(term: Term, steps=1000) -> Any:
+    t = term.fully_eval(steps)
+    return to_python(t)
+
+
+def to_python(t: Term) -> Any:
+    match t:
+        case Data():
+            return t.value
+        case String():
+            return t.value
+        case Integer():
+            return t.value
+        case Boolean():
+            return t.value
+        case List():
+            terms = t.terms
+            return [value_of(t1) for t1 in terms]
+        case Record():
+            attr = t.attributes()
+            return {k: value_of(t1) for k, t1 in attr.items()}
+        case PGSNObject():
+            attr = t.attributes()
+            cls_name = t.instance.name
+            attrs =  {k: value_of(t1) for k, t1 in attr.items()}
+            attrs["__" + cls_name + "__"] = True
+            return attrs
+        case _:
+            raise ValueError(f'PGSN term {type(t)} does not normalizes a Python value')
+
+
+def prettify(obs: Term):
+    return to_python(obs)
 
 # Evaluation Context
 # leftmost, outermost reduction
