@@ -105,4 +105,6 @@ def test_json_3():
     s1 = pgsn_term.json_dumps(t, indent=2)
     #assert secure_goal == t # structural (==) is very slow
     assert s == s1
+    v = t.fully_eval()
+    assert v
 
