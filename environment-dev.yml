@@ -7,3 +7,5 @@ dependencies:
   - iniconfig
   - tomli
   - typeguard
+  - attrs
+  - cattrs
