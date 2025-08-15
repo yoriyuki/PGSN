@@ -362,7 +362,7 @@ if __name__ == '__main__':
     # print(json.dumps(gsn.python_val(n), sort_keys=True, indent=4))
     #print(s('sub_goals').fully_eval())
     SolarWinds = solarwinds.fully_eval()
-    pprint.pprint(prettify(SolarWinds))
+    pprint.pprint(pgsn.dsl.python_value(SolarWinds))
     # n = gsn.pgsn_to_gsn(SolarWinds, steps=10000)
     # js = json.dumps(gsn.python_val(n), sort_keys=True, indent=4)
     # print(js)
