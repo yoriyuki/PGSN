@@ -1,7 +1,7 @@
 from pprint import pprint
 
-from pgsn import *
-from pgsn import prettify
+from pgsn.gsn_term import *
+from pgsn.pgsn_term import prettify
 
 g = goal(
     description="System is secure",

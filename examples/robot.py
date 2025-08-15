@@ -1,13 +1,10 @@
 import sys
-from math import expm1
 
 import pgsn.pgsn_term
 
 sys.path.append("..")
-import json
 import pprint
 import pgsn.gsn_term
-from pgsn import gsn
 
 from typeguard import install_import_hook
 

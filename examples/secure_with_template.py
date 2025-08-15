@@ -1,6 +1,6 @@
 from pprint import pprint
 
-from pgsn import prettify
+from pgsn.pgsn_term import prettify
 from pgsn.stdlib import *
 from pgsn.gsn_term import goal, evidence, strategy
 

@@ -6,7 +6,6 @@ from attrs import field, frozen
 import pgsn.pgsn_term
 from pgsn import helpers
 from pgsn import pgsn_term
-from pgsn import stdlib
 
 
 @frozen

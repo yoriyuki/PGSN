@@ -1,10 +1,6 @@
-import json
-from xml.etree.ElementTree import indent
-
 from pgsn import pgsn_term, stdlib, gsn_term
 from pgsn.gsn_term import goal, evidence, immediate
-from pgsn.stdlib import let, lambda_abs, lambda_abs_vars, variable, define_class, base_class, list_term, record
-import pprint
+from pgsn.stdlib import lambda_abs, variable, define_class, base_class, list_term, record
 
 requirements = ["Firewall enabled", "Encrypted communication", "Access control active"]
 

@@ -1,11 +1,8 @@
 import sys
 
 sys.path.append("..")
-import json
 import pprint
 from pgsn.gsn_term import *
-from pgsn.stdlib import *
-from pgsn import gsn
 
 solarwinds = goal(description="Binary Repositoryが安全である",
                   support=strategy(description="Pushが安全であるためには?",

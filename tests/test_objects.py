@@ -1,8 +1,5 @@
-from attr import attributes
-
 from pgsn import pgsn_term, stdlib
 from pgsn.stdlib import define_class, is_subclass, is_instance
-from pgsn.pgsn_term import cast
 
 a = stdlib.string('a')
 b = stdlib.string('b')

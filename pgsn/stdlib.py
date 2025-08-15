@@ -1,5 +1,4 @@
 from __future__ import annotations
-from pgsn import helpers
 from pgsn.pgsn_term import Term, Variable, Abs, String, Integer, \
     Boolean, List, Record, ConstMixin, PGSNClass, PGSNObject, DefineClass, \
     Instance, IsSubclass, Constant, Formatter, IfThenElse, Guard, Equal, \

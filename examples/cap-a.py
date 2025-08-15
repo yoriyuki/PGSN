@@ -1,9 +1,8 @@
 import pprint
-import sys
-import json
-from pgsn.stdlib import *
+
+from pgsn.pgsn_term import prettify
 from pgsn.gsn_term import *
-from pgsn import gsn, prettify
+from pgsn.stdlib import *
 
 y = variable('y')
 xs = variable('xs')

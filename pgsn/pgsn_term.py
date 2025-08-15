@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-from typing import TypeAlias, Generic, Any
-import json
 import functools
-from typing import TypeAlias
+import json
 from abc import ABC, abstractmethod
-
-from attrs import field, frozen, evolve
-from typing import TypeVar, Any
+from typing import Any
+from typing import TypeAlias
 from typing import TypeVar
+
+import cattrs.preconf.json
 from attrs import field, frozen, evolve
 from cattrs.strategies import include_subclasses, configure_tagged_union
-from cattrs import Converter, unstructure
-import cattrs.preconf.json
-from pgsn import helpers
 
+from pgsn import helpers
 
 Term: TypeAlias = "Term"
 T = TypeVar('T')
