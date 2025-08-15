@@ -1,4 +1,5 @@
-from pgsn import pgsn_term, dsl
+from pgsn import dsl
+from src.pgsn import pgsn_term
 from pgsn.dsl import define_class, is_subclass, is_instance
 
 a = stdlib.string('a')

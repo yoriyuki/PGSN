@@ -3,9 +3,9 @@ import uuid
 from abc import ABC, abstractmethod
 from attrs import field, frozen
 
-import pgsn.pgsn_term
+import src.pgsn.pgsn_term
 from pgsn import helpers
-from pgsn import pgsn_term
+from src.pgsn import pgsn_term
 
 
 @frozen
@@ -154,7 +154,7 @@ def _dict_to_gsn(v: dict):
 
 
 def pgsn_to_gsn(t: pgsn_term.Term, steps=1000):
-    v = pgsn.pgsn_term.value_of(t, steps=steps)
+    v = src.pgsn.pgsn_term.value_of(t, steps=steps)
     if not isinstance(v, dict):
         raise ValueError('Term does not have a GSN')
     return _dict_to_gsn(v)

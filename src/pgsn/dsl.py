@@ -1,10 +1,12 @@
 from __future__ import annotations
+
+import json
+
 from pgsn.pgsn_term import Term, Variable, Abs, String, Integer, \
     Boolean, List, Record, ConstMixin, PGSNClass, PGSNObject, DefineClass, \
     Instance, IsSubclass, Constant, Formatter, IfThenElse, Guard, Equal, \
     Plus, Cons, Head, Tail, Index, Map, HasLabel, ListLabels, \
-    AddAttribute, RemoveAttribute, OverwriteRecord
-
+    AddAttribute, RemoveAttribute, OverwriteRecord, to_python, json_term_converter
 
 ###########################
 # DSL API
@@ -194,3 +196,17 @@ is_subclass = IsSubclass.named()
 instance = Instance.named()
 is_instance = lambda_abs_vars((_obj, _class), is_subclass(instance(_obj))(_class))
 instantiate = lambda_abs_vars((_class, _attrs), _class(_attrs))
+
+
+def python_value(obs: Term):
+    return to_python(obs)
+
+
+def json_dumps(t: Term, **kwargs) -> str:
+    d = json_term_converter.unstructure(t, unstructure_as=Term)
+    return json.dumps(d, **kwargs)
+
+
+def json_loads(s: str, **kwargs) -> Term:
+    d = json.loads(s, **kwargs)
+    return json_term_converter.structure(d, Term)

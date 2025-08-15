@@ -118,7 +118,7 @@ top = goal(
     )
 )
 
-pprint(prettify(top.fully_eval()))
+pprint(python_value(top.fully_eval()))
 ```
 
 ### Example 2: Auto-expanding Multiple Goals with `map_term`

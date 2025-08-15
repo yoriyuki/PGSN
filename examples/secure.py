@@ -1,7 +1,7 @@
 from pprint import pprint
 
 from pgsn.gsn import *
-from pgsn.pgsn_term import prettify
+from pgsn.dsl import python_value
 
 g = goal(
     description="System is secure",
@@ -16,4 +16,4 @@ g = goal(
     )
 )
 
-pprint(prettify(g.fully_eval()))
+pprint(python_value(g.fully_eval()))

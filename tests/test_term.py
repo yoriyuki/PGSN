@@ -1,4 +1,4 @@
-from pgsn import pgsn_term, dsl
+from src.pgsn import pgsn_term
 from pgsn.dsl import let, lambda_abs, lambda_abs_vars
 
 
@@ -8,7 +8,7 @@ from pgsn.dsl import let, lambda_abs, lambda_abs_vars
 
 
 def test_var():
-    var_x = pgsn_term.Variable.named(name='x', meta_info={'name':'x'})
+    var_x = pgsn_term.Variable.named(name='x', meta_info={'name': 'x'})
     nameless_x = var_x.remove_name()
     assert (nameless_x.meta_info['name']== 'x')
 

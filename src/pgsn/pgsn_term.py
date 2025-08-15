@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import functools
-import json
 from abc import ABC, abstractmethod
 from typing import Any
 from typing import TypeAlias
@@ -1151,9 +1150,6 @@ def to_python(t: Term) -> Any:
             raise ValueError(f'PGSN term {type(t)} does not normalizes a Python value')
 
 
-def prettify(obs: Term):
-    return to_python(obs)
-
 # Evaluation Context
 # leftmost, outermost reduction
 @frozen
@@ -1209,13 +1205,3 @@ class Context:
 json_term_converter = cattrs.preconf.json.make_converter()
 union_strategy = functools.partial(configure_tagged_union, tag_name="type_name")
 include_subclasses(Term, json_term_converter, union_strategy=union_strategy)
-
-
-def json_dumps(t: Term, **kwargs) -> str:
-    d = json_term_converter.unstructure(t, unstructure_as=Term)
-    return json.dumps(d, **kwargs)
-
-
-def json_loads(s: str, **kwargs) -> Term:
-    d = json.loads(s, **kwargs)
-    return json_term_converter.structure(d, Term)

@@ -1,5 +1,5 @@
 from pgsn import dsl
-from pgsn.pgsn_term import List
+from src.pgsn.pgsn_term import List
 
 
 def test_list():

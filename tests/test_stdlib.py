@@ -1,5 +1,6 @@
-import pgsn.pgsn_term
-from pgsn import pgsn_term, dsl
+import src.pgsn.pgsn_term
+from pgsn import dsl
+from src.pgsn import pgsn_term
 from pgsn.dsl import lambda_abs, lambda_abs_vars, lambda_abs_keywords, plus, let
 
 
@@ -229,13 +230,13 @@ def test_add_attribute_record_fun():
 id_f = Id.named()
 
 def test_value_of():
-    assert pgsn.pgsn_term.value_of(stdlib.integer(1)) == 1
-    assert pgsn.pgsn_term.value_of(stdlib.true)
-    assert pgsn.pgsn_term.value_of(stdlib.string('hoge')) == 'hoge'
-    assert pgsn.pgsn_term.value_of(id_f(['gaga', 'piyo'])) == ['gaga', 'piyo']
-    assert pgsn.pgsn_term.value_of(id_f({'gaga':1, 'piyo':2})) == {'gaga':1, 'piyo':2}
+    assert src.pgsn.pgsn_term.value_of(stdlib.integer(1)) == 1
+    assert src.pgsn.pgsn_term.value_of(stdlib.true)
+    assert src.pgsn.pgsn_term.value_of(stdlib.string('hoge')) == 'hoge'
+    assert src.pgsn.pgsn_term.value_of(id_f(['gaga', 'piyo'])) == ['gaga', 'piyo']
+    assert src.pgsn.pgsn_term.value_of(id_f({'gaga':1, 'piyo':2})) == {'gaga':1, 'piyo':2}
 
 
 def test_format():
     f_string = stdlib.string('{x}, {y}, {z}')
-    assert pgsn.pgsn_term.value_of(stdlib.format_string(f_string, {'x':1, 'y': 'hoge', 'z': [1, 2]})) == '1, hoge, [1, 2]'
+    assert src.pgsn.pgsn_term.value_of(stdlib.format_string(f_string, {'x':1, 'y': 'hoge', 'z': [1, 2]})) == '1, hoge, [1, 2]'

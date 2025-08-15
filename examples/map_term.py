@@ -1,6 +1,5 @@
 from pprint import pprint
 
-from pgsn.pgsn_term import prettify
 from pgsn.dsl import *
 from pgsn.gsn import *
 
@@ -19,4 +18,4 @@ secure_goal = goal(
     support=immediate(goals)
 )
 
-pprint(prettify(secure_goal.fully_eval()))
+pprint(python_value(secure_goal.fully_eval()))
