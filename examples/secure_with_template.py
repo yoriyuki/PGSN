@@ -1,8 +1,8 @@
 from pprint import pprint
 
 from pgsn.pgsn_term import prettify
-from pgsn.stdlib import *
-from pgsn.gsn_term import goal, evidence, strategy
+from pgsn.dsl import *
+from pgsn.gsn import goal, evidence, strategy
 
 # Define a reusable goal+evidence template
 mk_goal_with_evidence = lambda_abs_keywords(

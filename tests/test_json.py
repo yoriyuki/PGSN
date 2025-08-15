@@ -1,6 +1,6 @@
-from pgsn import pgsn_term, stdlib, gsn_term
-from pgsn.gsn_term import goal, evidence, immediate
-from pgsn.stdlib import lambda_abs, variable, define_class, base_class, list_term, record
+from pgsn import pgsn_term, dsl, gsn
+from pgsn.gsn import goal, evidence, immediate
+from pgsn.dsl import lambda_abs, variable, define_class, base_class, list_term, record
 
 requirements = ["Firewall enabled", "Encrypted communication", "Access control active"]
 

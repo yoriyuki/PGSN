@@ -1,4 +1,4 @@
-from pgsn import stdlib
+from pgsn import dsl
 from pgsn.pgsn_term import List
 
 

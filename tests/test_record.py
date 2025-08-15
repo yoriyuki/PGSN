@@ -1,5 +1,5 @@
-from pgsn import stdlib
-from pgsn.stdlib import let, lambda_abs_vars
+from pgsn import dsl
+from pgsn.dsl import let, lambda_abs_vars
 
 
 def test_record():

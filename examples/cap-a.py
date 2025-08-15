@@ -1,8 +1,8 @@
 import pprint
 
 from pgsn.pgsn_term import prettify
-from pgsn.gsn_term import *
-from pgsn.stdlib import *
+from pgsn.gsn import *
+from pgsn.dsl import *
 
 y = variable('y')
 xs = variable('xs')

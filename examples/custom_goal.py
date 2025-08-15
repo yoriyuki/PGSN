@@ -1,7 +1,7 @@
 from pprint import pprint
 
 from pgsn.pgsn_term import prettify
-from pgsn.stdlib import *
+from pgsn.dsl import *
 
 # Define a custom subclass of Goal
 CustomGoal = define_class(inherit=goal_class, name="GoalWithProject", attributes=["project"])

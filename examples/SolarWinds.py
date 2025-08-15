@@ -2,7 +2,7 @@ import sys
 
 sys.path.append("..")
 import pprint
-from pgsn.gsn_term import *
+from pgsn.gsn import *
 
 solarwinds = goal(description="Binary Repositoryが安全である",
                   support=strategy(description="Pushが安全であるためには?",

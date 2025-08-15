@@ -1,6 +1,6 @@
 import pgsn.pgsn_term
-from pgsn import pgsn_term, stdlib
-from pgsn.stdlib import lambda_abs, lambda_abs_vars, lambda_abs_keywords, plus, let
+from pgsn import pgsn_term, dsl
+from pgsn.dsl import lambda_abs, lambda_abs_vars, lambda_abs_keywords, plus, let
 
 
 def test_list():

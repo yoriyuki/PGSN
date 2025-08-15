@@ -92,8 +92,8 @@ Define a reusable function that generates a goal node supported by an evidence n
 from pprint import pprint
 
 from pgsn import prettify
-from pgsn.stdlib import *
-from pgsn.gsn_term import goal, evidence, strategy
+from pgsn.dsl import *
+from pgsn.gsn import goal, evidence, strategy
 
 # Define a reusable goal+evidence template
 mk_goal_with_evidence = lambda_abs_keywords(
@@ -128,14 +128,14 @@ Use `map_term` to generate multiple sub-goals from a list of requirements dynami
 ```python
 from pprint import pprint
 
-from pgsn.gsn_term import *
+from pgsn.gsn import *
 
-requirements = ["Firewall enabled","Encrypted communication","Access control active"]
+requirements = ["Firewall enabled", "Encrypted communication", "Access control active"]
 
 goal_template = lambda_abs(variable("desc"),
-    goal(description=variable("desc"),
-         support=evidence(description=variable("desc")))
-)
+                           goal(description=variable("desc"),
+                                support=evidence(description=variable("desc")))
+                           )
 
 goals = map_term(goal_template, requirements)
 

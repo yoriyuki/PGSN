@@ -4,7 +4,7 @@ import pgsn.pgsn_term
 
 sys.path.append("..")
 import pprint
-import pgsn.gsn_term
+import pgsn.gsn
 
 from typeguard import install_import_hook
 

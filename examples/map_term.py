@@ -1,8 +1,8 @@
 from pprint import pprint
 
 from pgsn.pgsn_term import prettify
-from pgsn.stdlib import *
-from pgsn.gsn_term import *
+from pgsn.dsl import *
+from pgsn.gsn import *
 
 requirements = ["Firewall enabled", "Encrypted communication", "Access control active"]
 

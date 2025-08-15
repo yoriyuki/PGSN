@@ -103,8 +103,8 @@ pprint(prettify(g.fully_eval()))
 from pprint import pprint
 
 from pgsn import prettify
-from pgsn.stdlib import *
-from pgsn.gsn_term import goal, evidence, strategy
+from pgsn.dsl import *
+from pgsn.gsn import goal, evidence, strategy
 
 # goal + evidence のテンプレート関数を定義
 mk_goal_with_evidence = lambda_abs_keywords(
@@ -141,14 +141,14 @@ pprint(prettify(top.fully_eval()))
 ```python
 from pprint import pprint
 
-from pgsn.gsn_term import *
+from pgsn.gsn import *
 
 requirements = ["Firewall enabled", "Encrypted communication", "Access control active"]
 
 goal_template = lambda_abs(variable("desc"),
-    goal(description=variable("desc"),
-         support=evidence(description=variable("desc")))
-)
+                           goal(description=variable("desc"),
+                                support=evidence(description=variable("desc")))
+                           )
 
 goals = map_term(goal_template, requirements)
 

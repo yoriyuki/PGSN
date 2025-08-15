@@ -1,5 +1,5 @@
-from pgsn import pgsn_term, stdlib
-from pgsn.stdlib import let, lambda_abs, lambda_abs_vars
+from pgsn import pgsn_term, dsl
+from pgsn.dsl import let, lambda_abs, lambda_abs_vars
 
 
 # import string_term
