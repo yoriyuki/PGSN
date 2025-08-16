@@ -1,0 +1,38 @@
+# ビルドシステム自体の設定
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+# パッケージの基本的な情報（メタデータ）
+[project]
+name = "pgsn"
+version = "0.0.1"
+authors = [
+  { name="Yoriyuki Yamagata", email="yoriyuki.y@gmail.com" },
+]
+description = "PGSN: a programming language for GSN generation and manipulation"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+# このパッケージが依存する他のライブラリがあればここに書く
+dependencies = [
+    "attrs>=25.3",
+    "cattrs>=25.1"
+]
+
+[project.urls]
+Homepage = "https://github.com/yoriyuki/pgsn"
+Repository = "https://github.com/yoriyuki/pgsn"
+
+## ここが、コマンドラインツールを定義する場所
+#[project.scripts]
+## "コマンド名" = "パッケージ名.モジュール名:関数名"
+#your-command = "your_package_name.main:cli"
+
+# setuptoolsに、どこにパッケージのコードがあるか教える
+[tool.setuptools.packages.find]
+where = ["src"]
