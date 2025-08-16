@@ -1,6 +1,4 @@
 attrs~=24.3.0
-colorama
 setuptools==75.8.0
 wheel==0.45.1
-typeguard~=4.4.4
 cattrs~=25.1.1
