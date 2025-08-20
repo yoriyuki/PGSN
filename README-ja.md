@@ -28,16 +28,18 @@ PGSNは現在、**Pythonに埋め込まれたDSL（ドメイン特化言語）**
 
 ## インストール
 
-### Conda を使う場合
+pipによりインストール可能です。
+```shell
+pip install git+https://github.com/yoriyuki/pgsn.git
+```
 
+condaを使ってライブラリの開発をする場合
 ```bash
 git clone https://github.com/yoriyuki/PGSN.git
 cd PGSN
 conda env create -f environment.yml -n PGSN
 ```
-
-### pip を使う場合
-
+pipを使ってライブラリの開発をする場合
 ```bash
 git clone https://github.com/yoriyuki/PGSN.git
 cd PGSN
@@ -51,7 +53,8 @@ pip install -r requirements.txt
 ```python
 from pprint import pprint
 
-from pgsn import *
+from pgsn.gsn import *
+from pgsn.dsl import python_value
 
 g = goal(
     description="System is secure",
@@ -66,9 +69,10 @@ g = goal(
     )
 )
 
-pprint(prettify(g.fully_eval()))
+pprint(python_value(g.fully_eval()))
 ```
 
+リポジトリのトップから
 ```shell
 % python -m examples.gsn
 {'assumptions': [],
@@ -102,11 +106,10 @@ pprint(prettify(g.fully_eval()))
 ```python
 from pprint import pprint
 
-from pgsn import prettify
 from pgsn.dsl import *
 from pgsn.gsn import goal, evidence, strategy
 
-# goal + evidence のテンプレート関数を定義
+# Define a reusable goal+evidence template
 mk_goal_with_evidence = lambda_abs_keywords(
     {"desc": variable("desc")},
     goal(
@@ -115,12 +118,12 @@ mk_goal_with_evidence = lambda_abs_keywords(
     )
 )
 
-# テンプレートを適用してゴールを生成
+# Apply the template to multiple goals
 g1 = mk_goal_with_evidence(desc="No hardcoded passwords")
 g2 = mk_goal_with_evidence(desc="Input sanitized")
 g3 = mk_goal_with_evidence(desc="Logging enabled")
 
-# トップレベルのゴールに統合
+# Compose a top-level goal with a strategy
 top = goal(
     description="System is secure",
     support=strategy(
@@ -141,14 +144,16 @@ pprint(python_value(top.fully_eval()))
 ```python
 from pprint import pprint
 
+from pgsn.dsl import *
 from pgsn.gsn import *
 
 requirements = ["Firewall enabled", "Encrypted communication", "Access control active"]
 
+
 goal_template = lambda_abs(variable("desc"),
-                           goal(description=variable("desc"),
-                                support=evidence(description=variable("desc")))
-                           )
+    goal(description=variable("desc"),
+         support=evidence(description=variable("desc")))
+)
 
 goals = map_term(goal_template, requirements)
 
@@ -157,7 +162,7 @@ secure_goal = goal(
     support=immediate(goals)
 )
 
-pprint(prettify(secure_goal.fully_eval()))
+pprint(python_value(secure_goal.fully_eval()))
 ```
 
 ---
@@ -169,16 +174,17 @@ GSNの各要素はクラスです。継承により拡張が可能です。
 ```python
 from pprint import pprint
 
-from pgsn import *
+from pgsn.dsl import *
+from pgsn.gsn import *
 
-# Goal を拡張するクラスを定義
-CustomGoal = define_class("CustomGoal", goal_class, project="Alpha")
+# Define a custom subclass of Goal
+CustomGoal = define_class(inherit=goal_class, name="GoalWithProject", attributes=["project"])
 
-# クラスからインスタンス生成
 g = instantiate(CustomGoal, description="Secure connection established",
-    support=evidence(description="Verified by audit"))
+                project='Alpha',
+                support=evidence(description="Verified by audit"))
 
-pprint(prettify(g.fully_eval()))
+pprint(python_value(g.fully_eval()))
 ```
 
 ---
@@ -213,11 +219,10 @@ pprint(prettify(g.fully_eval()))
 
 ## アーキテクチャ
 
-| レイヤー     | コンポーネント                    | 概要                                     |
-|--------------|-----------------------------------|------------------------------------------|
-| コア         | `pgsn_term.py`                    | ラムダ計算に基づくインタプリタ              |
-| DSL層        | `stdlib.py`, `gsn_term.py`        | GSN構成要素を定義するためのAPI群           |
-| OO層         | `object_term.py`                  | クラス・継承を用いたノード型の再利用と拡張 |
+| レイヤー     | コンポーネント            | 概要                                     |
+|--------------|--------------------|------------------------------------------|
+| コア         | `pgsn_term.py`     | ラムダ計算に基づくインタプリタ              |
+| DSL層        | `dsl.py`, `gsn.py` | GSN構成要素を定義するためのAPI群           |
 
 ---
 

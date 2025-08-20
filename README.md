@@ -24,13 +24,19 @@ Unlike standard GSN, which primarily consists of static diagrams, PGSN allows dy
 
 ## Installation
 
-Use conda
+For users
+
+```shell
+pip install git+https://github.com/yoriyuki/pgsn.git
+```
+
+For developers using conda
 ```bash
 git clone https://github.com/yoriyuki/PGSN.git
 cd PGSN
 conda env create -f environment.yml -n PGSN
 ```
-or pip
+For developers using pip
 ```bash
 git clone https://github.com/yoriyuki/PGSN.git
 cd PGSN
@@ -42,12 +48,13 @@ pip install -r requirements.txt
 ```python
 from pprint import pprint
 
-from pgsn import *
+from pgsn.gsn import *
+from pgsn.dsl import python_value
 
 g = goal(
-    description=string("System is secure"),
+    description="System is secure",
     support=strategy(
-        description=string("Break into sub-goals"),
+        description="Break into sub-goals",
         sub_goals=[
             goal(description="Input validated",
                  support=evidence(description="Static analysis passed")),
@@ -57,9 +64,10 @@ g = goal(
     )
 )
 
-pprint(prettify(g.fully_eval()))
+pprint(python_value(g.fully_eval()))
 ```
 
+From the project root,
 ```shell
 % python -m examples.gsn
 {'assumptions': [],
@@ -91,7 +99,6 @@ Define a reusable function that generates a goal node supported by an evidence n
 ```python
 from pprint import pprint
 
-from pgsn import prettify
 from pgsn.dsl import *
 from pgsn.gsn import goal, evidence, strategy
 
@@ -128,14 +135,16 @@ Use `map_term` to generate multiple sub-goals from a list of requirements dynami
 ```python
 from pprint import pprint
 
+from pgsn.dsl import *
 from pgsn.gsn import *
 
 requirements = ["Firewall enabled", "Encrypted communication", "Access control active"]
 
+
 goal_template = lambda_abs(variable("desc"),
-                           goal(description=variable("desc"),
-                                support=evidence(description=variable("desc")))
-                           )
+    goal(description=variable("desc"),
+         support=evidence(description=variable("desc")))
+)
 
 goals = map_term(goal_template, requirements)
 
@@ -144,7 +153,7 @@ secure_goal = goal(
     support=immediate(goals)
 )
 
-pprint(prettify(secure_goal.fully_eval()))
+pprint(python_value(secure_goal.fully_eval()))
 ```
 
 ### Example 3: Class-based Node Composition Using Object System
@@ -154,15 +163,17 @@ Use `object_term.py` to define a custom goal class and instantiate it with addit
 ```python
 from pprint import pprint
 
-from pgsn import *
+from pgsn.dsl import *
+from pgsn.gsn import *
 
 # Define a custom subclass of Goal
-CustomGoal = define_class("CustomGoal", goal_class, project="Alpha")
+CustomGoal = define_class(inherit=goal_class, name="GoalWithProject", attributes=["project"])
 
 g = instantiate(CustomGoal, description="Secure connection established",
-    support=evidence(description="Verified by audit"))
+                project='Alpha',
+                support=evidence(description="Verified by audit"))
 
-pprint(prettify(g.fully_eval()))
+pprint(python_value(g.fully_eval()))
 ```
 
 These advanced examples demonstrate how to:
@@ -193,11 +204,10 @@ You can adapt these techniques to build domain-specific GSN templates, automate 
 
 ## Architecture
 
-| Layer    | Component                  | Purpose                          |
-|----------|----------------------------|----------------------------------|
-| Core     | `pgsn_term.py`             | Lambda calculus interpreter      |
-| DSL      | `stdlib.py`, `gsn_term.py` | Human-friendly API to define GSN |
-| OO Layer | `object_term.py`           | Reusable GSN node types          |
+| Layer    | Component          | Purpose                          |
+|----------|--------------------|----------------------------------|
+| Core     | `pgsn_term.py`     | Lambda calculus interpreter      |
+| DSL      | `dsl.py`, `gsn.py` | Human-friendly API to define GSN |
 
 ##  License
 
