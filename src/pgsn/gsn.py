@@ -38,7 +38,7 @@ goal = pgsn.dsl.lambda_abs_keywords(arguments={'description': _d,
                                        defaults=pgsn.dsl.record({
                                'assumptions': pgsn.dsl.empty,
                                'contexts': pgsn.dsl.empty}),
-                                       body=goal_class(description=_d, support=_support))
+                                       body=goal_class(description=_d, contexts=_contexts, support=_support))
 assumption = pgsn.dsl.lambda_abs_keywords(arguments={'description': _d},
                                              body=assumption_class(description=_d))
 context = pgsn.dsl.lambda_abs_keywords(arguments={'description': _d},
