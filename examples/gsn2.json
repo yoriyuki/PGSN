@@ -1,0 +1,29 @@
+{
+  "nodes": [
+    {
+      "id": 0,
+      "gsn_type": "Goal",
+      "description": "1"
+    },
+    {
+      "id": 1,
+      "gsn_type": "Context",
+      "description": "1は1である"
+    },
+    {
+      "id": 2,
+      "gsn_type": "Evidence",
+      "description": "1は正しい"
+    }
+  ],
+  "edges": [
+    {
+      "from": 1,
+      "to": 0
+    },
+    {
+      "from": 0,
+      "to": 2
+    }
+  ]
+}
