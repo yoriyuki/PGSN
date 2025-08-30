@@ -16,4 +16,4 @@ g = goal(
     )
 )
 
-pprint(python_value(g.fully_eval()))
+gsn_tree(g.fully_eval()).show()

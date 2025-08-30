@@ -21,7 +21,8 @@ classifiers = [
 # このパッケージが依存する他のライブラリがあればここに書く
 dependencies = [
     "attrs>=25.3",
-    "cattrs>=25.1"
+    "cattrs>=25.1",
+    "treelib>=1.7"
 ]
 
 [project.urls]

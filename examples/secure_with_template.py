@@ -1,7 +1,7 @@
 from pprint import pprint
 
 from pgsn.dsl import *
-from pgsn.gsn import goal, evidence, strategy
+from pgsn.gsn import goal, evidence, strategy, gsn_tree
 
 # Define a reusable goal+evidence template
 mk_goal_with_evidence = lambda_abs_keywords(
@@ -26,4 +26,4 @@ top = goal(
     )
 )
 
-pprint(python_value(top.fully_eval()))
+gsn_tree(top.fully_eval()).show()

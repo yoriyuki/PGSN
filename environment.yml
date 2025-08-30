@@ -11,3 +11,4 @@ dependencies:
   - typing-extensions
   - zipp
   - cattrs
+  - treelib

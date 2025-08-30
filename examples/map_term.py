@@ -18,4 +18,4 @@ secure_goal = goal(
     support=immediate(goals)
 )
 
-pprint(python_value(secure_goal.fully_eval()))
+gsn_tree(secure_goal.fully_eval()).show()

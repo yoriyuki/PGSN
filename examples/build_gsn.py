@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple
 
 from pgsn.dsl import *
 from pgsn.gsn import goal, evidence, context, strategy, assumption, undeveloped
+import pgsn
 
 SUPPORT_PRIORITY = ["Strategy", "Evidence", "Goal", "Assumption", "Undeveloped"]
 
@@ -134,7 +135,7 @@ def main():
     for i, top in enumerate(tops, 1):
         if len(tops) > 1:
             print(f"¥n=== Top-level Goal #{i} ===")
-        pprint(python_value(top.fully_eval()))
+        (pgsn.gsn.gsn_tree(top.fully_eval())).show()
 
 if __name__ == "__main__":
     main()

@@ -69,7 +69,7 @@ system = pgsn.gsn.goal(description="The robot does not make unintended movements
 
 if __name__ == '__main__':
     system_evaluated = system.fully_eval()
-    pprint.pprint(pgsn.dsl.to_python(system_evaluated), indent=2)
+    pgsn.gsn.gsn_tree(system_evaluated).show()
     # n = gsn.pgsn_to_gsn(system_evaluated, steps=1)
     # js = json.dumps(gsn.python_val(n), sort_keys=True, indent=4)
     # print(js)
