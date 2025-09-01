@@ -86,14 +86,14 @@ def build_gsn_from_json(json_path: str) -> Tuple[list[object], dict[str, object]
                 kwargs["contexts"] = [ctx_obj]
             if support_obj is not None:
                 kwargs["support"] = support_obj
-
-            print(kwargs)
+            #
+            # print(kwargs)
 
             obj = goal(**kwargs)
 
             obj2 = goal(description = "2", contexts = ["2は2である"], support = evidence(description="2は正しい"))
-            pprint(python_value(obj.fully_eval()))
-            pprint(python_value(obj2.fully_eval()))
+            # pprint(python_value(obj.fully_eval()))
+            # pprint(python_value(obj2.fully_eval()))
 
 
 

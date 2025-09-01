@@ -1,5 +1,7 @@
 import uuid
 from treelib import Tree
+import treelib
+import graphviz
 
 import pgsn.dsl
 import pgsn.pgsn_term
@@ -129,4 +131,101 @@ def gsn_tree(root_term: pgsn.pgsn_term.Term) -> Tree:
     _add_nodes(py_data)
     return tree
 
+
+GSN_SHAPES = {
+        'Goal': 'box',
+        'Strategy': 'parallelogram',
+        'Evidence': 'ellipse',  # Evidenceは円で表現することが多い
+        'Solution': 'ellipse',  # Solutionも円で
+        'Context': 'box',  # 本来は角丸だけど、まずは四角で
+        'Assumption': 'ellipse',
+    }
+
+
+
+def gsn_dot(gsn: pgsn.pgsn_term.Term, layout_attrs: dict[str]=None) -> graphviz.Digraph:
+    """
+    treelib.Treeオブジェクトを受け取り、GSNのルールに基づいて
+    ノードの形をカスタマイズしたdotファイルを生成する。
+    """
+    tree = gsn_tree(gsn)
+
+    # GSNのタイプとgraphvizのshapeを対応付ける辞書
+    default_layout = {
+        "rankdir": "TB",
+        "splines": "spline",
+        "nodesep": "0.6",
+        "ranksep": "1.2"
+    }
+    if layout_attrs:
+        default_layout.update(layout_attrs)
+
+    dot = graphviz.Digraph('GSN', comment='Goal Structuring Notation')
+    # 見た目を整えるための設定
+    dot.attr(**default_layout)
+
+    # tree内のすべてのノードをたどる
+    # 水平に並べたいノードのペアを記録しておくリスト
+    horizontal_pairs = []
+    for node in tree.expand_tree(mode=treelib.Tree.DEPTH):
+        node_obj = tree.get_node(node)
+        tag = node_obj.tag
+
+        # tagからGSNタイプとラベルを抽出する
+        node_type = 'Default'
+        node_label = tag
+
+        if ': ' in tag:
+            parts = tag.split(': ', 1)
+            # parts[0]がGSN_TYPESに含まれているかチェック
+            if parts[0] in GSN_TYPES:
+                node_type = parts[0]
+                node_label = parts[1]
+
+        # GSNタイプに基づいて形を決定する
+        shape = GSN_SHAPES.get(node_type, 'box')  # GSNタイプでなければデフォルトで四角
+        style = ''
+        if node_type == 'Context':
+            # Contextのときだけ、styleを'rounded'に設定する
+            style = 'rounded'
+
+        # ノードをdotオブジェクトに追加するときに、styleも渡してあげる
+        dot.node(
+            name=node_obj.identifier,
+            label=f"{node_type}\n{node_label}",
+            shape=shape,
+            style=style  # styleを追加
+        )
+
+
+        if not node_obj.is_root():
+            parent_id = node_obj.predecessor(tree.identifier)
+
+            if node_type in ('Assumption', 'Context'):
+                # 矢印の向きを逆にする魔法だけをかける
+                dot.edge(parent_id, node_obj.identifier, dir='back')
+
+                # 水平にしたいペアとして、親と自分を記録しておく
+                horizontal_pairs.append((parent_id, node_obj.identifier))
+            else:
+                dot.edge(parent_id, node_obj.identifier)
+
+    # --- ここからが、新しい言霊を紡ぐ部分 ---
+    # ループが終わった後で、記録しておいたペアに、まとめて魔法をかける
+    for parent, child in horizontal_pairs:
+        # dot.bodyに、{ rank=same; "親ID"; "子ID" } という文字列を直接追加する
+        dot.body.append(f'{{ rank=same; "{parent}"; "{child}" }}')
+
+    return dot
+
+
+def save_gsn(gsn: pgsn.pgsn_term.Term,
+             filename: str,
+             image_format: str = "png",
+             view=False,
+             cleanup=True,
+             layout_attrs: dict = None):
+
+    dot = gsn_dot(gsn)
+    dot.render(filename, view=view, format=image_format, cleanup=cleanup)
 

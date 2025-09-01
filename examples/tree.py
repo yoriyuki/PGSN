@@ -2,6 +2,7 @@ from pprint import pprint
 
 from pgsn.gsn import *
 from pgsn.gsn import gsn_tree
+import pgsn.dsl
 
 if __name__ == '__main__':
     # サンプルとなる複雑なTermオブジェクトを組み立てる
@@ -25,3 +26,6 @@ if __name__ == '__main__':
 
     # 結果を表示
     my_tree.show()
+
+
+    dot = save_gsn(gsn, "gsn_tree", view=True)
