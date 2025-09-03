@@ -176,8 +176,6 @@ def render(input_file, term_name, output, image_format, steps, layout):
 @click.argument('python_file', type=click.Path(exists=True, dir_okay=False))
 @click.option('--term-name', default='main', help='The name of the Term object to evaluate.')
 @click.option('--output', '-o', default=None, help='The output JSON filename.')
-@click.option("--eval", '-e', type=bool, default=False, help="Evaluate term")
-@click.option("--steps", '-s', type=int, default=1000000, help="Number of steps of evaluation")
 def compile(python_file, term_name, output, eval, steps):
     """Compiles a trusted PGSN (.py) file into a secure JSON format."""
     click.echo(f"Compiling '{python_file}' to JSON...", err=True)
@@ -185,14 +183,8 @@ def compile(python_file, term_name, output, eval, steps):
     try:
         term = load_term_from_py_file(python_file, term_name)
 
-        click.echo(f"Evaluating term '{term_name}'...", err=True)
-        if eval:
-            output_term = term.fully_eval(steps=steps)
-        else:
-            output_term = term
-
         click.echo(f"Saving JSON to '{output}'...", err=True)
-        json_str = dsl.json_dumps(output_term, indent=None, separators=(',', ':'))
+        json_str = dsl.json_dumps(term, indent=None, separators=(',', ':'))
 
         with open(output, 'w', encoding='utf-8') as f:
             f.write(json_str)
