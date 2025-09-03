@@ -22,7 +22,9 @@ classifiers = [
 dependencies = [
     "attrs>=25.3",
     "cattrs>=25.1",
-    "treelib>=1.7"
+    "treelib>=1.7",
+    "graphviz>=13.1",
+    "click>=8.2"
 ]
 
 [project.urls]
@@ -33,6 +35,9 @@ Repository = "https://github.com/yoriyuki/pgsn"
 #[project.scripts]
 ## "コマンド名" = "パッケージ名.モジュール名:関数名"
 #your-command = "your_package_name.main:cli"
+
+[project.scripts]
+pgsn = "pgsn.cli:cli"
 
 # setuptoolsに、どこにパッケージのコードがあるか教える
 [tool.setuptools.packages.find]

@@ -223,8 +223,7 @@ def save_gsn(gsn: pgsn.pgsn_term.Term,
              filename: str,
              image_format: str = "png",
              view=False,
-             cleanup=True,
-             layout_attrs: dict = None):
+             cleanup=True):
 
     dot = gsn_dot(gsn)
     dot.render(filename, view=view, format=image_format, cleanup=cleanup)
