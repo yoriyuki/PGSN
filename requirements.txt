@@ -1,8 +1,6 @@
-attrs>=25.3.0
-setuptools==75.8.0
-wheel==0.45.1
-cattrs~=25.1.1
-pgsn>=0.0.1
-treelib>=1.7.1
-graphviz>=13.1.2
-typeguard>=4.4.4
+attrs==25.3.0
+cattrs==25.2.0
+click==8.2.1
+graphviz==0.21
+treelib==1.7.1
+typeguard==4.4.4

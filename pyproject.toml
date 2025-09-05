@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # パッケージの基本的な情報（メタデータ）
 [project]
 name = "pgsn"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Yoriyuki Yamagata", email="yoriyuki.y@gmail.com" },
 ]
@@ -23,7 +23,7 @@ dependencies = [
     "attrs>=25.3",
     "cattrs>=25.1",
     "treelib>=1.7",
-    "graphviz>=13.1",
+    "graphviz>=0.21",
     "click>=8.2"
 ]
 

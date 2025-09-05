@@ -1,14 +1,12 @@
-name: PGSN
+name: pgsn
 channels:
   - conda-forge
 dependencies:
   - python=3.12
-  - pip
-  - setuptools
-  - wheel
-  - attrs
-  - packaging
-  - typing-extensions
-  - zipp
+  - pytest
+  - attrs~=24.3.0
+  - typeguard
   - cattrs
   - treelib
+  - graphviz
+  - python-graphviz
