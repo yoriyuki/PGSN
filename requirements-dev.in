@@ -1,9 +1,0 @@
--e .
-attrs
-wheel
-cattrs
-pytest
-iniconfig
-pluggy
-tomli
-typeguard
