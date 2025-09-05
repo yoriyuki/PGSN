@@ -18,9 +18,9 @@ default_layout = {
 
 # (Imports and file loading function remain the same)
 try:
-    import dsl
-    import gsn
-    from pgsn_term import Term
+    from pgsn import dsl
+    from pgsn import gsn
+    from pgsn.pgsn_term import Term
 except ImportError as e:
     print(f"Error: Could not import PGSN modules: {e}")
     print("Please ensure gsn.py, dsl.py, and pgsn_term.py are accessible.")
@@ -63,7 +63,7 @@ def cli():
 @click.option('--output', '-o', default=None, help='The output filename (without extension).')
 @click.option('--steps', '-s', help='maximum number of steps of evaluation', type=int, default=1000000)
 def doc(input_file, term_name, doc_type, output, steps):
-    """Evaluates a PGSN term and renders it as a graph."""
+    """Evaluates a PGSN term and output doc in a specified format."""
 
     click.echo(f"Generating '{output}' from '{input_file}'", err=True)
 
