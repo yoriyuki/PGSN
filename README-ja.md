@@ -28,23 +28,42 @@ PGSNは現在、**Pythonに埋め込まれたDSL（ドメイン特化言語）**
 
 ## インストール
 
-pipによりインストール可能です。
+インストール方法
 ```shell
 pip install git+https://github.com/yoriyuki/pgsn.git
 ```
 
-condaを使ってライブラリの開発をする場合
+ライブラリの開発も行う場合
+```bash
+git clone https://github.com/yoriyuki/PGSN.git
+cd PGSN
+pip install -e .
+```
+
+condaを使ってライブラリの開発を行う場合
 ```bash
 git clone https://github.com/yoriyuki/PGSN.git
 cd PGSN
 conda env create -f environment.yml -n PGSN
 ```
-pipを使ってライブラリの開発をする場合
-```bash
-git clone https://github.com/yoriyuki/PGSN.git
-cd PGSN
-pip install -r requirements.txt
-```
+
+
+---
+## コマンドラインインタープリター
+
+```shell
+PGSN % pgsn doc examples/cli.py   
+Generating 'None' from 'examples/cli.py'
+Evaluating term 'main'...
+Goal: System is secure
+└── Strategy: Break into sub-goals
+    ├── Goal: Input validated
+    │   └── Evidence: Static analysis passed
+    └── Goal: Output sanitized
+        └── Evidence: Fuzzing test succeeded
+
+Done.
+````
 
 ---
 
@@ -69,30 +88,18 @@ g = goal(
     )
 )
 
-pprint(python_value(g.fully_eval()))
+gsn_tree(g.fully_eval()).show()
 ```
 
-リポジトリのトップから
+プロジェクトのソースコードディレクトリトップで
 ```shell
-% python -m examples.gsn
-{'assumptions': [],
- 'contexts': [],
- 'description': 'System is secure',
- 'gsn_type': 'Goal',
- 'support': {'description': 'Break into sub-goals',
-             'gsn_type': 'Strategy',
-             'sub_goals': [{'assumptions': [],
-                            'contexts': [],
-                            'description': 'Input validated',
-                            'gsn_type': 'Goal',
-                            'support': {'description': 'Static analysis passed',
-                                        'gsn_type': 'Evidence'}},
-                           {'assumptions': [],
-                            'contexts': [],
-                            'description': 'Output sanitized',
-                            'gsn_type': 'Goal',
-                            'support': {'description': 'Fuzzing test succeeded',
-                                        'gsn_type': 'Evidence'}}]}}
+% python examples/gsn.py
+Goal: System is secure
+└── Strategy: Break into sub-goals    pyproject-build    python             python3            python3.1          python3.12-config  
+    ├── Goal: Input validated
+    │   └── Evidence: Static analysis passed
+    └── Goal: Output sanitized
+        └── Evidence: Fuzzing test succeeded
 ```
 
 ---
@@ -104,10 +111,8 @@ pprint(python_value(g.fully_eval()))
 同じ説明文を持つ goal + evidence の構造を生成する再利用可能な関数を定義します。
 
 ```python
-from pprint import pprint
-
 from pgsn.dsl import *
-from pgsn.gsn import goal, evidence, strategy
+from pgsn.gsn import *
 
 # Define a reusable goal+evidence template
 mk_goal_with_evidence = lambda_abs_keywords(
@@ -132,7 +137,7 @@ top = goal(
     )
 )
 
-pprint(python_value(top.fully_eval()))
+gsn_tree(top.fully_eval()).show()
 ```
 
 ---
@@ -142,8 +147,6 @@ pprint(python_value(top.fully_eval()))
 複数の要件から自動的に goal + evidence の構造を生成します。
 
 ```python
-from pprint import pprint
-
 from pgsn.dsl import *
 from pgsn.gsn import *
 
@@ -162,7 +165,7 @@ secure_goal = goal(
     support=immediate(goals)
 )
 
-pprint(python_value(secure_goal.fully_eval()))
+gsn_tree(secure_goal.fully_eval()).show()
 ```
 
 ---
@@ -172,8 +175,6 @@ pprint(python_value(secure_goal.fully_eval()))
 GSNの各要素はクラスです。継承により拡張が可能です。
 
 ```python
-from pprint import pprint
-
 from pgsn.dsl import *
 from pgsn.gsn import *
 
@@ -184,9 +185,8 @@ g = instantiate(CustomGoal, description="Secure connection established",
                 project='Alpha',
                 support=evidence(description="Verified by audit"))
 
-pprint(python_value(g.fully_eval()))
+gsn_tree(g.fully_eval()).show()
 ```
-
 ---
 
 ## 技法と応用のまとめ

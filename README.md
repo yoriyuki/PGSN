@@ -30,26 +30,43 @@ For users
 pip install git+https://github.com/yoriyuki/pgsn.git
 ```
 
-For developers using conda
+For developers who want modify the library
+```bash
+git clone https://github.com/yoriyuki/PGSN.git
+cd PGSN
+pip install -e .
+```
+
+Or using conda
 ```bash
 git clone https://github.com/yoriyuki/PGSN.git
 cd PGSN
 conda env create -f environment.yml -n PGSN
 ```
-For developers using pip
-```bash
-git clone https://github.com/yoriyuki/PGSN.git
-cd PGSN
-pip install -r requirements.txt
-```
+
+## Command-line interface
+
+```shell
+PGSN % pgsn doc examples/cli.py   
+Generating 'None' from 'examples/cli.py'
+Evaluating term 'main'...
+Goal: System is secure
+└── Strategy: Break into sub-goals
+    ├── Goal: Input validated
+    │   └── Evidence: Static analysis passed
+    └── Goal: Output sanitized
+        └── Evidence: Fuzzing test succeeded
+
+Done.
+````
+
+Use "pgsn --help" for other command and option
 
 ## Example
 
 ```python
-from pprint import pprint
-
 from pgsn.gsn import *
-from pgsn.dsl import python_value
+from pgsn.dsl import *
 
 g = goal(
     description="System is secure",
@@ -64,30 +81,18 @@ g = goal(
     )
 )
 
-pprint(python_value(g.fully_eval()))
+gsn_tree(g.fully_eval()).show()
 ```
 
 From the project root,
 ```shell
-% python -m examples.gsn
-{'assumptions': [],
- 'contexts': [],
- 'description': 'System is secure',
- 'gsn_type': 'Goal',
- 'support': {'description': 'Break into sub-goals',
-             'gsn_type': 'Strategy',
-             'sub_goals': [{'assumptions': [],
-                            'contexts': [],
-                            'description': 'Input validated',
-                            'gsn_type': 'Goal',
-                            'support': {'description': 'Static analysis passed',
-                                        'gsn_type': 'Evidence'}},
-                           {'assumptions': [],
-                            'contexts': [],
-                            'description': 'Output sanitized',
-                            'gsn_type': 'Goal',
-                            'support': {'description': 'Fuzzing test succeeded',
-                                        'gsn_type': 'Evidence'}}]}}
+% python examples/gsn.py
+Goal: System is secure
+└── Strategy: Break into sub-goals    pyproject-build    python             python3            python3.1          python3.12-config  
+    ├── Goal: Input validated
+    │   └── Evidence: Static analysis passed
+    └── Goal: Output sanitized
+        └── Evidence: Fuzzing test succeeded
 ```
 
 ## Advanced Examples
@@ -97,10 +102,8 @@ From the project root,
 Define a reusable function that generates a goal node supported by an evidence node with the same description.
 
 ```python
-from pprint import pprint
-
 from pgsn.dsl import *
-from pgsn.gsn import goal, evidence, strategy
+from pgsn.gsn import *
 
 # Define a reusable goal+evidence template
 mk_goal_with_evidence = lambda_abs_keywords(
@@ -125,7 +128,7 @@ top = goal(
     )
 )
 
-pprint(python_value(top.fully_eval()))
+gsn_tree(top.fully_eval()).show()
 ```
 
 ### Example 2: Auto-expanding Multiple Goals with `map_term`
@@ -133,8 +136,6 @@ pprint(python_value(top.fully_eval()))
 Use `map_term` to generate multiple sub-goals from a list of requirements dynamically.
 
 ```python
-from pprint import pprint
-
 from pgsn.dsl import *
 from pgsn.gsn import *
 
@@ -153,7 +154,7 @@ secure_goal = goal(
     support=immediate(goals)
 )
 
-pprint(python_value(secure_goal.fully_eval()))
+gsn_tree(secure_goal.fully_eval()).show()
 ```
 
 ### Example 3: Class-based Node Composition Using Object System
@@ -161,8 +162,6 @@ pprint(python_value(secure_goal.fully_eval()))
 Use `object_term.py` to define a custom goal class and instantiate it with additional metadata.
 
 ```python
-from pprint import pprint
-
 from pgsn.dsl import *
 from pgsn.gsn import *
 
@@ -173,7 +172,7 @@ g = instantiate(CustomGoal, description="Secure connection established",
                 project='Alpha',
                 support=evidence(description="Verified by audit"))
 
-pprint(python_value(g.fully_eval()))
+gsn_tree(g.fully_eval()).show()
 ```
 
 These advanced examples demonstrate how to:
@@ -208,6 +207,7 @@ You can adapt these techniques to build domain-specific GSN templates, automate 
 |----------|--------------------|----------------------------------|
 | Core     | `pgsn_term.py`     | Lambda calculus interpreter      |
 | DSL      | `dsl.py`, `gsn.py` | Human-friendly API to define GSN |
+
 
 ##  License
 
