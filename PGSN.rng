@@ -58,25 +58,46 @@
             <ref name="var_pat"/>
           </choice>
         </element>
+        <ref name="defeater_pat"/>
       </choice>
     </zeroOrMore>
+  </define>
+
+
+  <!-- Dialectic extension (GSN v3). A Defeater challenges the node holding
+       it. Its support is optional: a defeater that argues its case supplies
+       one, a defeater that merely states an objection leaves it undeveloped.
+       Being a GSN node, a defeater can be challenged in turn, which is why
+       this pattern refers back to gsn_header. -->
+  <define name="defeater_pat">
+    <element name="Defeater">
+      <ref name="gsn_header"/>
+      <optional>
+        <ref name="support_pat"/>
+      </optional>
+    </element>
+  </define>
+
+
+  <define name="support_pat">
+    <choice>
+      <ref name="str_pat"/>
+      <ref name="ev_pat"/>
+      <oneOrMore>
+        <ref name="goal_pat"/>
+      </oneOrMore>
+      <element name="supportedBy">
+        <ref name="val_pat"/>
+      </element>
+      <element name="undeveloped"><empty/></element>
+    </choice>
   </define>
 
 
   <define name="goal_pat">
     <element name="Goal">
       <ref name="gsn_header" />
-      <choice>
-        <ref name="str_pat"/>
-        <ref name="ev_pat"/>
-        <oneOrMore>
-          <ref name="goal_pat"/>
-        </oneOrMore>
-        <element name="supportedBy">
-          <ref name="val_pat"/>
-        </element>
-        <element name="undeveloped"><empty/></element>
-      </choice>
+      <ref name="support_pat"/>
     </element>
   </define>
 
@@ -108,6 +129,7 @@
       <ref name="goal_pat"/>
       <ref name="str_pat"/>
       <ref name="ev_pat"/>
+      <ref name="defeater_pat"/>
     </choice>
   </define>
 
@@ -147,12 +169,12 @@
   <define name="call_pat">
     <ref name="val_pat"/>
     <zeroOrMore>
+      <!-- var="x" is not repeated here: val_pat already offers it as one of
+           its choices, and declaring the attribute twice in one group is what
+           RELAX NG calls an attribute conflict. -->
       <element name="arg">
         <optional>
           <attribute name="name"/>
-        </optional>
-        <optional>
-          <attribute name="var"/>
         </optional>
         <optional>
           <ref name="val_pat"/>
@@ -350,12 +372,12 @@
       </oneOrMore>
     </choice>
     <zeroOrMore>
+      <!-- var="x" is not repeated here: val_pat already offers it as one of
+           its choices, and declaring the attribute twice in one group is what
+           RELAX NG calls an attribute conflict. -->
       <element name="arg">
         <optional>
           <attribute name="name"/>
-        </optional>
-        <optional>
-          <attribute name="var"/>
         </optional>
         <optional>
           <ref name="val_pat"/>

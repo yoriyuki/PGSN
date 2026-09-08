@@ -1,0 +1,35 @@
+<PGSN>
+    <!-- The dialectic extension of GSN v3. A Defeater records a doubt about
+         the node that holds it. It may argue its case, in which case it takes
+         a support of its own, or it may simply state an objection. Because a
+         Defeater is an ordinary GSN node, it can be challenged in turn. -->
+    <Goal>
+        The braking controller is safe to release
+        <Defeater>
+            Hazard H4, wheel lock-up on ice, is not mitigated
+            <Evidence>Incident report 2026-03, field unit 118</Evidence>
+        </Defeater>
+        <Strategy>
+            Argue over each identified hazard
+            <Defeater>The hazard list predates the winter tyre variant</Defeater>
+            <Goal>
+                H1, brake overheating, is mitigated
+                <Evidence>Thermal soak test report TR-91</Evidence>
+            </Goal>
+            <Goal>
+                H2, sensor dropout, is mitigated
+                <Evidence>
+                    Fault injection campaign FI-07
+                    <Defeater>
+                        The campaign covered only the primary sensor
+                        <Defeater>The secondary sensor was added after FI-07 closed</Defeater>
+                    </Defeater>
+                </Evidence>
+            </Goal>
+            <Goal>
+                H3, latency under load, is mitigated
+                <undeveloped/>
+            </Goal>
+        </Strategy>
+    </Goal>
+</PGSN>

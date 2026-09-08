@@ -28,6 +28,7 @@ XML_CLASS_ALIASES = {
     "Assumption": "assumption_class",
     "GSN": "gsn_class",
     "Support": "support_class",
+    "Defeater": "defeater_class",
 }
 
 

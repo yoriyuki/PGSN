@@ -109,13 +109,16 @@ Each constructor takes keyword arguments and returns a term.
 
 | Constructor | Arguments |
 |-------------|-----------|
-| `goal` | `description`, `support`, `contexts` (default empty), `assumptions` (default empty) |
-| `strategy` | `description`, `sub_goals` |
-| `evidence` | `description` |
+| `goal` | `description`, `support`, `contexts` (default empty), `assumptions` (default empty), `defeaters` (default empty) |
+| `strategy` | `description`, `sub_goals`, `defeaters` (default empty) |
+| `evidence` | `description`, `defeaters` (default empty) |
 | `context` | `description`, `value` (default `""`) |
 | `assumption` | `description`, `value` (default `""`) |
+| `defeater` | `description`, `support` (default undeveloped), `defeaters` (default empty) |
 
 `support` has no default: an unsupported goal is written explicitly with `support=pgsn.undeveloped`.
+
+`defeaters` is the dialectic extension of GSN v3: a defeater records a doubt about the node holding it rather than support for it. Every node type accepts one, and a defeater is itself a node, so challenges nest. The standard has no Defeater element — there a defeater is a Goal or Solution joined to its target by a Challenges relationship — but a term language has no edges to carry that relationship, so PGSN makes the challenging role a class. One class covers both rebutting and undercutting defeaters: fill in `support` for a defeater that argues its case, leave it out for one that merely states an objection.
 
 Two helpers cover common shapes:
 
@@ -154,7 +157,7 @@ Goal: System is secure
 
 ### Classes
 
-The class values behind the constructors are `gsn_class`, `goal_class`, `strategy_class`, `evidence_class`, `context_class`, `assumption_class`, `support_class` and `undeveloped_class`. Use them with `define_class` to derive your own node types, and with `is_instance` to check one:
+The class values behind the constructors are `gsn_class`, `goal_class`, `strategy_class`, `evidence_class`, `context_class`, `assumption_class`, `defeater_class`, `support_class` and `undeveloped_class`. Use them with `define_class` to derive your own node types, and with `is_instance` to check one:
 
 ```python
 my_goal_class = pgsn.define_class(

@@ -109,13 +109,16 @@ pgsn.python_value(double(pgsn.integer(21)).fully_eval())   # 42
 
 | コンストラクタ | 引数 |
 |--------------|------|
-| `goal` | `description`・`support`・`contexts`（既定は空）・`assumptions`（既定は空） |
-| `strategy` | `description`・`sub_goals` |
-| `evidence` | `description` |
+| `goal` | `description`・`support`・`contexts`（既定は空）・`assumptions`（既定は空）・`defeaters`（既定は空） |
+| `strategy` | `description`・`sub_goals`・`defeaters`（既定は空） |
+| `evidence` | `description`・`defeaters`（既定は空） |
 | `context` | `description`・`value`（既定は `""`） |
 | `assumption` | `description`・`value`（既定は `""`） |
+| `defeater` | `description`・`support`（既定は undeveloped）・`defeaters`（既定は空） |
 
 `support` に既定値はありません。支持のないゴールは `support=pgsn.undeveloped` と明示的に書きます。
+
+`defeaters` は GSN v3 の dialectic extension です。defeater は、それを保持するノードへの支持ではなく疑いを記録します。どのノード型も defeater を持てますし、defeater 自身もノードなので反証は入れ子になります。規格そのものには Defeater 要素はなく、defeater は Challenges 関係で対象に繋がった Goal または Solution ですが、項の言語には関係を担う辺がないため、PGSN では攻撃するという役割をクラスとして表現しています。rebutting と undercutting は 1 クラスで足ります。対抗論拠を伴うなら `support` を埋め、異議を述べるだけなら省略します。
 
 よく使う形のための補助が 2 つあります。
 
@@ -154,7 +157,7 @@ Goal: System is secure
 
 ### クラス
 
-コンストラクタの背後にあるクラス値は `gsn_class`・`goal_class`・`strategy_class`・`evidence_class`・`context_class`・`assumption_class`・`support_class`・`undeveloped_class` です。`define_class` と組み合わせて独自のノード型を派生させたり、`is_instance` で判定したりできます。
+コンストラクタの背後にあるクラス値は `gsn_class`・`goal_class`・`strategy_class`・`evidence_class`・`context_class`・`assumption_class`・`defeater_class`・`support_class`・`undeveloped_class` です。`define_class` と組み合わせて独自のノード型を派生させたり、`is_instance` で判定したりできます。
 
 ```python
 my_goal_class = pgsn.define_class(

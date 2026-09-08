@@ -334,8 +334,8 @@ The following names are predefined; reference them with `<var name="..."/>` and 
 - Strings: `format_string`
 - Classes / objects: `define_class`, `instantiate`, `instance`, `is_instance`, `is_subclass`, `base_class`
 - Misc: `fix`, `repeat`, `undefined`
-- GSN constructors: `goal`, `strategy`, `evidence`, `context`, `assumption`, `undeveloped`, `immediate`, `evidence_as_goal`
-- GSN classes (long form): `goal_class`, `strategy_class`, `evidence_class`, `context_class`, `assumption_class`, `gsn_class`, `support_class`, `undeveloped_class`
+- GSN constructors: `goal`, `strategy`, `evidence`, `context`, `assumption`, `defeater`, `undeveloped`, `immediate`, `evidence_as_goal`
+- GSN classes (long form): `goal_class`, `strategy_class`, `evidence_class`, `context_class`, `assumption_class`, `defeater_class`, `gsn_class`, `support_class`, `undeveloped_class`
 - GSN classes (short aliases): `Goal`, `Strategy`, `Evidence`, `Context`, `Assumption`, `GSN`, `Support`
 
 Example (mapping a template over a list):
@@ -657,6 +657,37 @@ A set (`ul`) or list (`ol`) can be passed to `subGoals` to specify sub-goals dyn
     <Context>description of the test environment</Context>
 </Evidence>
 ```
+
+### Defeaters
+
+GSN v3 adds a dialectic extension: a *defeater* records a doubt about part of an argument rather than support for it. Any GSN node can hold defeaters, and a defeater is itself a GSN node, so it can be challenged in turn.
+
+```xml
+<Goal>the system is safe
+    <Defeater>hazard H4 is unmitigated
+        <Evidence>incident report 2026-03</Evidence>
+    </Defeater>
+    <Defeater>the test suite is out of date
+        <Defeater>it was refreshed in revision 7</Defeater>
+    </Defeater>
+    <Evidence>test report</Evidence>
+</Goal>
+```
+
+A `<Defeater>` is written like any other GSN node: leading text or a `<description>` gives the description, a nested `<Evidence>`, `<Strategy>`, `<Goal>` or `<supportedBy>` gives its support, and nested `<Defeater>` elements challenge it. Support is optional and defaults to undeveloped: a defeater that argues its case fills it in, one that merely states an objection leaves it out.
+
+Defeaters attach to strategies and to evidence as well as to goals:
+
+```xml
+<Strategy>argue over each hazard
+    <Defeater>the hazard list is incomplete</Defeater>
+    <Goal>H1 is mitigated<Evidence>report H1</Evidence></Goal>
+</Strategy>
+```
+
+The corresponding builtin is `defeater`, with the class value `defeater_class`. In a rendered graph a defeater is drawn as a hexagon with a broken outline, and the challenge is drawn with a dashed arrow, so that it does not read as SupportedBy.
+
+The standard has no Defeater element of its own: a defeater there is an ordinary Goal or Solution joined to its target by a Challenges relationship, and the literature's rebutting/undercutting distinction is read off the argument rather than off the notation. PGSN makes the challenging role a class instead, because a term language has no edges to carry a relationship. One class covers both kinds.
 
 ---
 
