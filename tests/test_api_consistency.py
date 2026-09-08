@@ -29,8 +29,6 @@ XML_CLASS_ALIASES = {
     "GSN": "gsn_class",
     "Support": "support_class",
     "Defeater": "defeater_class",
-    "Rebuttal": "rebuttal_class",
-    "Undercutter": "undercutter_class",
 }
 
 

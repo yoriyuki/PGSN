@@ -332,8 +332,8 @@ import が jail に入ると、その jail が import 先モジュールの封�
 - 文字列: `format_string`
 - クラス／オブジェクト: `define_class`・`instantiate`・`instance`・`is_instance`・`is_subclass`・`base_class`
 - その他: `fix`・`repeat`・`undefined`
-- GSN コンストラクタ: `goal`・`strategy`・`evidence`・`context`・`assumption`・`defeater`・`rebuttal`・`undercutter`・`undeveloped`・`immediate`・`evidence_as_goal`
-- GSN クラス（長い名前）: `goal_class`・`strategy_class`・`evidence_class`・`context_class`・`assumption_class`・`defeater_class`・`rebuttal_class`・`undercutter_class`・`gsn_class`・`support_class`・`undeveloped_class`
+- GSN コンストラクタ: `goal`・`strategy`・`evidence`・`context`・`assumption`・`defeater`・`undeveloped`・`immediate`・`evidence_as_goal`
+- GSN クラス（長い名前）: `goal_class`・`strategy_class`・`evidence_class`・`context_class`・`assumption_class`・`defeater_class`・`gsn_class`・`support_class`・`undeveloped_class`
 - GSN クラス（短いエイリアス）: `Goal`・`Strategy`・`Evidence`・`Context`・`Assumption`・`GSN`・`Support`
 
 例（リストにテンプレートを写像する）:
@@ -655,34 +655,34 @@ Goal・Strategy・Evidence はすべて共通のヘッダ構造を持ちます�
 
 ### 反証（Defeater）
 
-GSN v3 で追加された dialectic extension では、*defeater* が議論の一部に対する疑いを記録します。支持ではなく攻撃を表す点が他のノードと違います。攻撃する対象によって 2 種類に分かれます。**rebutting**（反駁）は主張そのものに反対する対抗論拠で、それ自体が支持を持ちます。**undercutting**（掘り崩し）は、主張とそれを支えるものの結び付きを断つ事実を述べます。
-
-どの GSN ノードも defeater を持てます。defeater 自身も GSN ノードなので、さらに反証されることもあります。
+GSN v3 で追加された dialectic extension では、*defeater* が議論の一部に対する疑いを記録します。支持ではなく攻撃を表す点が他のノードと違います。どの GSN ノードも defeater を持てます。defeater 自身も GSN ノードなので、さらに反証されることもあります。
 
 ```xml
 <Goal>システムは安全である
-    <Rebuttal>ハザード H4 が未対応である
+    <Defeater>ハザード H4 が未対応である
         <Evidence>インシデント報告 2026-03</Evidence>
-    </Rebuttal>
-    <Undercutter>テストスイートが仕様に追従していない
-        <Undercutter>改訂 7 で更新済みである</Undercutter>
-    </Undercutter>
+    </Defeater>
+    <Defeater>テストスイートが仕様に追従していない
+        <Defeater>改訂 7 で更新済みである</Defeater>
+    </Defeater>
     <Evidence>試験報告書</Evidence>
 </Goal>
 ```
 
-種別をまだ決めていない場合のために `<Defeater>` もあります。書き方は他の GSN ノードと同じで、先頭テキストか `<description>` が description になり、入れ子の `<Evidence>`・`<Strategy>`・`<Goal>`・`<supportedBy>` が support に、入れ子の defeater 要素がそれ自身への反証になります。
+書き方は他の GSN ノードと同じで、先頭テキストか `<description>` が description になり、入れ子の `<Evidence>`・`<Strategy>`・`<Goal>`・`<supportedBy>` が support に、入れ子の `<Defeater>` がそれ自身への反証になります。support は省略でき、既定は undeveloped です。対抗論拠を伴う反証は support を埋め、異議を述べるだけの反証は空のままにします。
 
 defeater はゴールだけでなく、戦略やエビデンスにも付きます。
 
 ```xml
 <Strategy>ハザードごとに議論する
-    <Undercutter>ハザード一覧が網羅的でない</Undercutter>
+    <Defeater>ハザード一覧が網羅的でない</Defeater>
     <Goal>H1 は緩和されている<Evidence>試験報告書 H1</Evidence></Goal>
 </Strategy>
 ```
 
-対応する組み込みは `defeater`・`rebuttal`・`undercutter`、クラス値は `defeater_class`・`rebuttal_class`・`undercutter_class` です。図では破線の六角形で描かれ、challenge の辺も破線になります。SupportedBy と読み違えないためです。
+対応する組み込みは `defeater`、クラス値は `defeater_class` です。図では破線の六角形で描かれ、challenge の辺も破線になります。SupportedBy と読み違えないためです。
+
+なお規格そのものには Defeater 要素はありません。規格上の defeater は、Challenges 関係で対象に繋がった普通の Goal または Solution であり、rebutting と undercutting の区別も記法ではなく議論の中身から読み取るものです。PGSN は項の言語で辺を持たないため、攻撃するという役割をクラスとして表現しています。区別は 1 クラスで足ります。
 
 ---
 

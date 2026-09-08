@@ -26,12 +26,10 @@ from pgsn.dsl import (
     Term,
 )
 from pgsn.gsn import (
-    goal, strategy, evidence, context, assumption,
-    defeater, rebuttal, undercutter,
+    goal, strategy, evidence, context, assumption, defeater,
     goal_class, strategy_class, evidence_class,
     context_class, assumption_class, gsn_class,
-    support_class, undeveloped_class,
-    defeater_class, rebuttal_class, undercutter_class,
+    support_class, undeveloped_class, defeater_class,
     undeveloped, immediate, evidence_as_goal,
 )
 
@@ -148,11 +146,10 @@ class _Chroot:
 # ------------------------------------------------------------------ #
 
 _GSN_HEADER_TAGS = {"Goal", "Strategy", "Evidence", "Context", "Assumption",
-                    "Defeater", "Rebuttal", "Undercutter"}
+                    "Defeater"}
 
 # Tags that attach a defeater to the node holding them.
-_DEFEATER_TAGS = {"Defeater": defeater, "Rebuttal": rebuttal,
-                  "Undercutter": undercutter}
+_DEFEATER_TAGS = {"Defeater"}
 
 
 # ------------------------------------------------------------------ #
@@ -458,21 +455,19 @@ _BUILTINS: dict[str, Term] = {
     "is_subclass": is_subclass, "base_class": base_class,
     "goal": goal, "strategy": strategy, "evidence": evidence,
     "context": context, "assumption": assumption,
-    "defeater": defeater, "rebuttal": rebuttal, "undercutter": undercutter,
+    "defeater": defeater,
     "immediate": immediate, "undeveloped": undeveloped,
     "evidence_as_goal": evidence_as_goal,
     "gsn_class": gsn_class, "goal_class": goal_class,
     "strategy_class": strategy_class, "evidence_class": evidence_class,
     "context_class": context_class, "assumption_class": assumption_class,
     "support_class": support_class, "undeveloped_class": undeveloped_class,
-    "defeater_class": defeater_class, "rebuttal_class": rebuttal_class,
-    "undercutter_class": undercutter_class,
+    "defeater_class": defeater_class,
     # Intuitive aliases for GSN class values
     "Goal": goal_class, "Strategy": strategy_class, "Evidence": evidence_class,
     "Context": context_class, "Assumption": assumption_class,
     "GSN": gsn_class, "Support": support_class,
-    "Defeater": defeater_class, "Rebuttal": rebuttal_class,
-    "Undercutter": undercutter_class,
+    "Defeater": defeater_class,
 }
 
 _SUPPORT_TAGS = {"Strategy", "Evidence", "Goal", "supportedBy", "undeveloped"}
@@ -738,8 +733,6 @@ def _expr(elem: ET.Element, chroot: _Chroot,
         "Strategy": _e_strategy,
         "Evidence": _e_evidence,
         "Defeater": _e_defeater,
-        "Rebuttal": _e_defeater,
-        "Undercutter": _e_defeater,
     }
     fn = dispatch.get(elem.tag)
     if fn is None:
@@ -1031,11 +1024,10 @@ def _e_defeater(elem: ET.Element, chroot: _Chroot,
     It is written like any other GSN node — a description, and optionally a
     support of its own and further defeaters challenging it in turn:
 
-        <Rebuttal>hazard H4 is unmitigated
+        <Defeater>hazard H4 is unmitigated
           <Evidence>incident report 2026-03</Evidence>
-        </Rebuttal>
+        </Defeater>
     """
-    ctor = _DEFEATER_TAGS[elem.tag]
     desc, _, _, defeaters = _gsn_header(elem, chroot, visiting)
     body = [c for c in elem if c.tag in _SUPPORT_TAGS]
     support = undeveloped
@@ -1049,8 +1041,8 @@ def _e_defeater(elem: ET.Element, chroot: _Chroot,
             )))
         elif first.tag == "supportedBy":
             support = _content(first, chroot, visiting)
-    return ctor(description=desc, support=support,
-                defeaters=list_term(tuple(defeaters)))
+    return defeater(description=desc, support=support,
+                    defeaters=list_term(tuple(defeaters)))
 
 
 def _e_annotation(elem: ET.Element, chroot: _Chroot, visiting: frozenset[Path],

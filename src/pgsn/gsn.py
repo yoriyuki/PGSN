@@ -36,15 +36,17 @@ context_class = pgsn.dsl.define_class(inherit=gsn_class, name='Context',
                                        defaults={"value": pgsn.dsl.string("")})
 
 # Dialectic extension (GSN v3). A defeater challenges the node that holds it.
-# A rebutting defeater is a supported counter-argument, so it carries a support
-# of its own; an undercutting defeater states facts that break the link between
-# a claim and what is offered for it, and usually leaves its support undeveloped.
+#
+# The standard has no Defeater element: a defeater is an ordinary Goal or
+# Solution linked to its target by a Challenges relationship, and the
+# rebutting/undercutting distinction is read off the argument rather than the
+# notation. PGSN makes the challenging role a class instead, because a term
+# language has no edges to carry the relationship. One class is enough; a
+# defeater that argues its case fills in `support`, and one that merely states
+# an objection leaves it undeveloped.
 defeater_class = pgsn.dsl.define_class(inherit=gsn_class, name='Defeater',
                                        attributes=["support"],
                                        defaults={"support": undeveloped})
-rebuttal_class = pgsn.dsl.define_class(inherit=defeater_class, name='Rebuttal')
-undercutter_class = pgsn.dsl.define_class(inherit=defeater_class,
-                                          name='Undercutter')
 
 _d = pgsn.dsl.variable('x')
 _support = pgsn.dsl.variable('support')
@@ -87,22 +89,13 @@ context = pgsn.dsl.lambda_abs_keywords(
     defaults=pgsn.dsl.record({'value': pgsn.dsl.string("")}),
     body=context_class(description=_d, value=_value))
 
-_defeater_args = {'description': _d, 'support': _support,
-                  'defeaters': _defeaters}
-_defeater_defaults = pgsn.dsl.record({'support': undeveloped,
-                                      'defeaters': pgsn.dsl.empty})
 defeater = pgsn.dsl.lambda_abs_keywords(
-    arguments=_defeater_args, defaults=_defeater_defaults,
+    arguments={'description': _d, 'support': _support,
+               'defeaters': _defeaters},
+    defaults=pgsn.dsl.record({'support': undeveloped,
+                              'defeaters': pgsn.dsl.empty}),
     body=defeater_class(description=_d, support=_support,
                         defeaters=_defeaters))
-rebuttal = pgsn.dsl.lambda_abs_keywords(
-    arguments=_defeater_args, defaults=_defeater_defaults,
-    body=rebuttal_class(description=_d, support=_support,
-                        defeaters=_defeaters))
-undercutter = pgsn.dsl.lambda_abs_keywords(
-    arguments=_defeater_args, defaults=_defeater_defaults,
-    body=undercutter_class(description=_d, support=_support,
-                           defeaters=_defeaters))
 
 _goals = pgsn.dsl.variable('goals')
 immediate = pgsn.dsl.lambda_abs(_goals, strategy(description="immediate", sub_goals=_goals))
@@ -116,10 +109,10 @@ evidence_as_goal = pgsn.dsl.lambda_abs(_evd, goal(description=_evd('description'
 GSN_KEYS_TO_FLATTEN = {"support", "sub_goals", "contexts", "assumptions",
                        "defeaters"}
 GSN_TYPES = {"Goal", "Strategy", "Evidence", "Context", "Assumption",
-             "Undeveloped", "Defeater", "Rebuttal", "Undercutter"}
+             "Undeveloped", "Defeater"}
 
 # The kinds of node that challenge rather than support what holds them.
-GSN_DEFEATER_TYPES = {"Defeater", "Rebuttal", "Undercutter"}
+GSN_DEFEATER_TYPES = {"Defeater"}
 
 
 # Term and to_python are assumed to be in your module
@@ -207,11 +200,8 @@ GSN_SHAPES = {
         'Context': 'box',  # 本来は角丸だけど、まずは四角で
         'Assumption': 'ellipse',
         'Undeveloped': 'diamond',
-        # The dialectic extension draws every defeater with one glyph, so the
-        # two kinds share a shape and are told apart by their label.
+        # The dialectic extension draws every defeater with one glyph.
         'Defeater': 'hexagon',
-        'Rebuttal': 'hexagon',
-        'Undercutter': 'hexagon',
     }
 
 
