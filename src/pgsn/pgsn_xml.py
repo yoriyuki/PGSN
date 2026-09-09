@@ -170,6 +170,10 @@ _DEFEATER_TAGS = {"Defeater"}
 
 _RESERVED_PREFIX = "_"
 
+# The name an imported module's record is bound to. Reserved, so a document
+# can neither read it nor interfere with it.
+_MODULE_VAR = _RESERVED_PREFIX + "module"
+
 # Attributes holding the name of a *variable*, by element. `var` is shorthand
 # for a <var> child and is accepted on any element, so it is checked
 # everywhere. Record labels — <get name=>, <attribute name=>, <dt key=>,
@@ -779,6 +783,12 @@ def _compile_from(elem: ET.Element, chroot: _Chroot,
     """
     File I/O at compile time (path is a static literal).
     Module application and field access are lazy Terms.
+
+    The applied module is bound to a name of its own and each import projects
+    a field off that name, so the module occupies one position in the compiled
+    term however many names are taken from it. The name is reserved, so no
+    document can refer to it, and rebinding it for the next `<from>` in the
+    same block is harmless: each projection reads the binding nearest to it.
     """
     file_path = elem.get("file", "")
     inner, full = chroot.enter(file_path)
@@ -796,13 +806,19 @@ def _compile_from(elem: ET.Element, chroot: _Chroot,
     # Args compiled in the caller's scope — they are Terms, not values yet
     args = {a.get("name"): _content(a, chroot, visiting)
             for a in elem.findall("arg")}
-    applied = module_term(record(args))
 
     single = elem.get("import")
     if single:
-        return [(elem.get("as", single), applied(string(single)))]
-    return [(imp.get("as", imp.get("name")), applied(string(imp.get("name"))))
-            for imp in elem.findall("import")]
+        wanted = [(elem.get("as", single), single)]
+    else:
+        wanted = [(imp.get("as", imp.get("name")), imp.get("name"))
+                  for imp in elem.findall("import")]
+    if not wanted:
+        return []
+
+    module = variable(_MODULE_VAR)
+    return ([(_MODULE_VAR, module_term(record(args)))]
+            + [(alias, module(string(exported))) for alias, exported in wanted])
 
 
 # ------------------------------------------------------------------ #
