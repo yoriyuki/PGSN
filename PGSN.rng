@@ -296,6 +296,41 @@
   <element name="expr"><text/></element>
 </define>
 
+
+<!-- Conditionals. Each part is a wrapper holding a value, so it accepts the
+     same forms a value does, including the var= shorthand. -->
+<define name="cond_part_pat">
+  <element name="cond"><ref name="val_pat"/></element>
+</define>
+
+<define name="then_part_pat">
+  <element name="then"><ref name="val_pat"/></element>
+</define>
+
+<define name="else_part_pat">
+  <element name="else"><ref name="val_pat"/></element>
+</define>
+
+<define name="if_pat">
+  <element name="if">
+    <ref name="cond_part_pat"/>
+    <ref name="then_part_pat"/>
+    <ref name="else_part_pat"/>
+  </element>
+</define>
+
+<define name="cases_pat">
+  <element name="cases">
+    <oneOrMore>
+      <element name="case">
+        <ref name="cond_part_pat"/>
+        <ref name="then_part_pat"/>
+      </element>
+    </oneOrMore>
+    <ref name="else_part_pat"/>
+  </element>
+</define>
+
 <define name="expression_pat">
   <choice>
     <text/>
@@ -313,6 +348,8 @@
       </zeroOrMore>
       <ref name="base_val_pat"/>
     </element>
+    <ref name="if_pat"/>
+    <ref name="cases_pat"/>
     <ref name="data_type_pat"/>
     <ref name="module_pat"/>
     <ref name="GSNNode"/>

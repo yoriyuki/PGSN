@@ -435,6 +435,96 @@ def _expand_expr(elem: ET.Element) -> None:
     elem[:] = list(expansion)
 
 
+def _move_content(src: ET.Element, dst: ET.Element) -> None:
+    """Transplant whatever `src` says its value is into `dst`.
+
+    A value can be given as text, as a child element, or through the `var`
+    shorthand, and a wrapper like <cond> is transparent to all three.
+    """
+    dst.text = src.text
+    if "var" in src.attrib:
+        dst.set("var", src.attrib["var"])
+    for child in list(src):
+        dst.append(child)
+
+
+def _one_child(elem: ET.Element, tag: str, owner: str) -> ET.Element:
+    found = [c for c in elem if c.tag == tag]
+    if len(found) != 1:
+        raise PGSNError(
+            f"<{owner}> needs exactly one <{tag}>, found {len(found)}")
+    return found[0]
+
+
+def _expand_if(elem: ET.Element) -> None:
+    """<if><cond/><then/><else/> -> an application of the builtin."""
+    known = {"cond", "then", "else"}
+    unexpected = [c.tag for c in elem if c.tag not in known]
+    if unexpected:
+        raise PGSNError(
+            f"<if> takes <cond>, <then> and <else>; found <{unexpected[0]}>")
+    parts = [_one_child(elem, tag, "if") for tag in ("cond", "then", "else")]
+    _rewrite_as_conditional(elem, parts)
+
+
+def _expand_cases(elem: ET.Element) -> None:
+    """<cases> is a chain of <case>s ending in an <else>, which is required:
+    a conditional with nothing to fall back on would simply get stuck."""
+    known = {"case", "else"}
+    unexpected = [c.tag for c in elem if c.tag not in known]
+    if unexpected:
+        raise PGSNError(
+            f"<cases> takes <case> and <else>; found <{unexpected[0]}>")
+    cases = [c for c in elem if c.tag == "case"]
+    if not cases:
+        raise PGSNError("<cases> needs at least one <case>")
+    if not len(elem) or elem[-1].tag != "else":
+        raise PGSNError("<cases> must end in an <else>")
+
+    fallback = elem[-1]
+    for case in cases:
+        unexpected = [c.tag for c in case if c.tag not in {"cond", "then"}]
+        if unexpected:
+            raise PGSNError(
+                f"<case> takes <cond> and <then>; found <{unexpected[0]}>")
+
+    # Built from the last case outwards, so each conditional is the else of
+    # the one before it. `result` is always a wrapper holding the value, the
+    # shape the rewriting below expects.
+    result = fallback
+    for case in reversed(cases):
+        branch = ET.Element("if")
+        _rewrite_as_conditional(
+            branch, [_one_child(case, "cond", "case"),
+                     _one_child(case, "then", "case"), result])
+        result = ET.Element("else")
+        result.append(branch)
+    _replace_with(elem, result[0])
+
+
+def _rewrite_as_conditional(elem: ET.Element, parts: list[ET.Element]) -> None:
+    """Turn `elem` into `if_then_else` applied to the three parts.
+
+    The builtin is reached through its reserved name, so `<if>` keeps meaning
+    a conditional in a scope that binds `if_then_else` to something else.
+    """
+    application = ET.Element("apply")
+    application.append(_reserved("if_then_else"))
+    for part in parts:
+        arg = ET.SubElement(application, "arg")
+        _move_content(part, arg)
+    _replace_with(elem, application)
+
+
+def _replace_with(elem: ET.Element, replacement: ET.Element) -> None:
+    """Become `replacement`, in place."""
+    elem.tag = replacement.tag
+    elem.attrib.clear()
+    elem.attrib.update(replacement.attrib)
+    elem.text = replacement.text
+    elem[:] = list(replacement)
+
+
 def _preprocess(elem: ET.Element) -> None:
     """Recursively expand shorthand notations in place."""
     # expr: replace with the XML it stands for, before anything else looks at
@@ -442,6 +532,13 @@ def _preprocess(elem: ET.Element) -> None:
     if elem.tag == "expr":
         _expand_expr(elem)
         return
+
+    # Conditionals are rewritten into an application of the builtin, and the
+    # result is preprocessed like any other element.
+    if elem.tag == "if":
+        _expand_if(elem)
+    elif elem.tag == "cases":
+        _expand_cases(elem)
 
     # def-as: wrap the def body in an element named by the `as` attribute
     if elem.tag == "def" and "as" in elem.attrib:
