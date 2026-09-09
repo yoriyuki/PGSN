@@ -12,7 +12,7 @@ from pathlib import Path
 from pgsn.config import Config, get_config
 from pgsn.jail import JailError, is_within
 from pgsn.dsl import (
-    variable, string, list_term, record, empty_record, let,
+    variable, string, list_term, record, empty_record, let, let_vars,
     lambda_abs, lambda_abs_keywords, lambda_abs_vars,
     fix, map_term, fold, foldr, concat, cons, head, tail, index, repeat,
     list_all, integer_sum, integer,
@@ -153,6 +153,65 @@ _DEFEATER_TAGS = {"Defeater"}
 
 
 # ------------------------------------------------------------------ #
+# Names
+#
+# A name must be an identifier and must not begin with an underscore.
+#
+# The identifier part keeps `<var>` and `<expr>` in agreement: an expression is
+# parsed by Python's parser, so a name that is not an identifier could be
+# introduced by a <def> and then never referred to from an expression.
+#
+# The underscore is what desugaring reserves for itself. It needs names the
+# document cannot rebind — that is what lets `<expr>` promise that `1 + 2` is
+# addition — and a prefix no document may use provides them. The check runs
+# over the source tree before any expansion, so the names desugaring introduces
+# are not themselves subject to it.
+# ------------------------------------------------------------------ #
+
+_RESERVED_PREFIX = "_"
+
+# Attributes holding the name of a *variable*, by element. `var` is shorthand
+# for a <var> child and is accepted on any element, so it is checked
+# everywhere. Record labels — <get name=>, <attribute name=>, <dt key=>,
+# <send name=> — are a separate namespace and are deliberately not reserved.
+_NAME_ATTRS: dict[str, tuple[str, ...]] = {
+    "def":    ("name", "instanceOf"),
+    "param":  ("name", "instanceOf"),
+    "var":    ("name", "instanceOf"),
+    "from":   ("as",),
+    "import": ("name", "as"),
+    "apply":  ("template",),
+    "get":    ("of",),
+    "send":   ("to",),
+    # A keyword argument's name has to match a parameter's, so the two share
+    # the restriction even though the argument does not bind anything.
+    "arg":    ("name",),
+}
+
+
+def _name_error(name: str, where: str = "") -> PGSNError:
+    if name.startswith(_RESERVED_PREFIX):
+        reason = ("a name may not begin with an underscore; "
+                  "those are reserved by the implementation")
+    else:
+        reason = ("a name must begin with a letter and continue with letters, "
+                  "digits or underscores")
+    return PGSNError(f"{name!r} is not a valid name{where}: {reason}.")
+
+
+def _check_names(elem: ET.Element) -> None:
+    """Reject invalid or reserved names anywhere in a source document."""
+    for attr in ("var",) + _NAME_ATTRS.get(elem.tag, ()):
+        value = elem.get(attr)
+        if value is None:
+            continue
+        if value.startswith(_RESERVED_PREFIX) or not value.isidentifier():
+            raise _name_error(value, f' in <{elem.tag} {attr}="{value}">')
+    for child in elem:
+        _check_names(child)
+
+
+# ------------------------------------------------------------------ #
 # <expr>: infix notation for the terms that are already expressible
 #
 # The text of an <expr> is parsed with Python's own parser and the resulting
@@ -160,8 +219,8 @@ _DEFEATER_TAGS = {"Defeater"}
 # hand. Nothing is evaluated, and no node type is translated unless it appears
 # in the tables below, so the syntax cannot reach anything `<apply>` could not.
 #
-# Operators expand to <builtin>, not <var>, so that `1 + 2` means addition
-# whatever the surrounding document happens to bind.
+# Operators expand to the reserved alias of a builtin, so that `1 + 2` means
+# addition whatever the surrounding document happens to bind.
 # ------------------------------------------------------------------ #
 
 _BIN_OPS = {
@@ -177,11 +236,24 @@ _BIN_OPS = {
 _BOOL_OPS = {ast.And: "boolean_and", ast.Or: "boolean_or"}
 
 
+def _reserved(name: str) -> ET.Element:
+    """A <var> naming the reserved alias of a builtin.
+
+    Every builtin is bound twice: under its own name, which a document may
+    rebind like any other, and under an underscored alias, which it may not,
+    because the reserved-name check rejects such names in source documents.
+    Desugaring goes through the alias, so `1 + 2` is addition whatever the
+    surrounding document binds `plus` to.
+    """
+    elem = ET.Element("var")
+    elem.set("name", _RESERVED_PREFIX + name)
+    return elem
+
+
 def _call_builtin(name: str, *args: ET.Element) -> ET.Element:
-    """Build <apply><builtin name="..."/><arg>..</arg>..</apply>."""
+    """Build <apply><var name="_..."/><arg>..</arg>..</apply>."""
     apply_elem = ET.Element("apply")
-    fn = ET.SubElement(apply_elem, "builtin")
-    fn.set("name", name)
+    apply_elem.append(_reserved(name))
     for a in args:
         arg = ET.SubElement(apply_elem, "arg")
         arg.append(a)
@@ -203,9 +275,7 @@ def _translate(node: ast.AST) -> ET.Element:
 
         case ast.Constant(value=bool() as b):
             # Checked before int: in Python, bool is a subclass of int.
-            elem = ET.Element("builtin")
-            elem.set("name", "true" if b else "false")
-            return elem
+            return _reserved("true" if b else "false")
 
         case ast.Constant(value=int() as i):
             elem = ET.Element("num")
@@ -218,6 +288,8 @@ def _translate(node: ast.AST) -> ET.Element:
             return elem
 
         case ast.Name():
+            if node.id.startswith(_RESERVED_PREFIX):
+                raise _name_error(node.id)
             elem = ET.Element("var")
             elem.set("name", node.id)
             return elem
@@ -501,12 +573,46 @@ def _text_to_term(s: str) -> Term:
 
 
 def _resolve(name: str, instance_of: str | None = None) -> Term:
-    """Builtins are substituted inline; other names become free variables."""
-    term = _BUILTINS.get(name, variable(name))
+    """Every name becomes a variable; nothing is substituted inline.
+
+    What a name denotes is decided by the binder structure around it, and by
+    the builtin scope that `_builtin_scope` wraps every compilation unit in.
+    A document that binds `head` therefore means its own `head`, rather than
+    silently getting the builtin.
+    """
+    term = variable(name)
     if instance_of:
-        cls = _BUILTINS.get(instance_of, variable(instance_of))
-        term = guard(is_instance(term, cls))(term)
+        term = guard(is_instance(term, variable(instance_of)))(term)
     return term
+
+
+def _builtin_scope(body: Term) -> Term:
+    """Wrap a compilation unit in the scope that gives the builtins meaning.
+
+    Every builtin is bound under two names: its own, which the document may
+    rebind like any other, and an underscored alias, which it may not, since
+    the reserved-name check rejects such names in source documents. The effect
+    is that of an implicit ``<def name="plus"><var name="_plus"/></def>`` at
+    the head of every document — a document binding `plus` shadows it, while
+    desugaring keeps reaching the builtin through `_plus`.
+
+    Only the names the unit actually leaves free are bound. Binding the whole
+    table instead would be equivalent — a name the document never mentions
+    cannot be observed — but ruinous: the builtin terms are large, every
+    binding substitutes its value through the body, and a chain deep enough to
+    hold them all exhausts the interpreter's stack, since every traversal of a
+    term recurses. A document mentions a handful.
+
+    Which names are free is not decided here. `Term.free_variables` already
+    answers it, and has to be right anyway: removing names before evaluation
+    depends on the same answer.
+    """
+    bindings = []
+    for spelling in sorted(body.free_variables()):
+        term = _BUILTINS.get(spelling.removeprefix(_RESERVED_PREFIX))
+        if term is not None:
+            bindings.append((variable(spelling), term))
+    return let_vars(tuple(bindings), body) if bindings else body
 
 
 def _thread_lets(bindings: list[tuple[str, Term]],
@@ -588,18 +694,19 @@ def _compile_root(root: ET.Element, chroot: _Chroot,
     """
     if root.tag != "PGSN":
         raise PGSNError(f"Expected <PGSN>, got <{root.tag}>")
+    _check_names(root)
     _preprocess(root)
     children = list(root)
     # The final value may be a bare text node (no child elements)
     if not children:
         text = (root.text or "").strip()
         if text:
-            return _text_to_term(text)
+            return _builtin_scope(_text_to_term(text))
         raise PGSNError("<PGSN> has no value")
     visiting = frozenset({entry}) if entry is not None else frozenset()
     final = _expr(children[-1], chroot, visiting)
     bindings = _bindings(children[:-1], chroot, visiting)
-    return _thread_lets(bindings, final)
+    return _builtin_scope(_thread_lets(bindings, final))
 
 
 def _compile_module(root: ET.Element, chroot: _Chroot,
@@ -628,7 +735,11 @@ def _compile_module(root: ET.Element, chroot: _Chroot,
 
     arguments = {p: variable(p) for p in params}
     defaults_rec = record(defaults_dict) if defaults_dict else empty_record
-    return lambda_abs_keywords(arguments, body, defaults_rec)
+    # A module is a separate lexical scope, so it needs the builtin scope of
+    # its own; the importing document's cannot reach inside it. The wrapping
+    # sits outside the abstraction, so the bindings are reduced once rather
+    # than once per application.
+    return _builtin_scope(lambda_abs_keywords(arguments, body, defaults_rec))
 
 
 # ------------------------------------------------------------------ #
@@ -658,8 +769,7 @@ def _compile_def(elem: ET.Element, chroot: _Chroot,
 
     instance_of = elem.get("instanceOf")
     if instance_of:
-        cls = _BUILTINS.get(instance_of, variable(instance_of))
-        term = guard(is_instance(term, cls))(term)
+        term = guard(is_instance(term, variable(instance_of)))(term)
 
     return name, term
 
@@ -678,6 +788,7 @@ def _compile_from(elem: ET.Element, chroot: _Chroot,
     root = ET.parse(full).getroot()
     if root.tag != "PGSNModule":
         raise PGSNError(f"Expected <PGSNModule> in {file_path!r}")
+    _check_names(root)
     _preprocess(root)
 
     module_term = _compile_module(root, inner, visiting | {full})
@@ -718,7 +829,6 @@ def _expr(elem: ET.Element, chroot: _Chroot,
         "var":      _e_var,
         "num":      _e_num,
         "str":      _e_str,
-        "builtin":  _e_builtin,
         "template": _e_template,
         "apply":    _e_apply,
         "class":    _e_class,
@@ -765,24 +875,6 @@ def _e_str(elem: ET.Element, _ch: "_Chroot", _v: frozenset) -> Term:
     if len(elem):
         raise PGSNError("<str> takes text, not child elements")
     return string(elem.text or "")
-
-
-def _e_builtin(elem: ET.Element, _ch: "_Chroot", _v: frozenset) -> Term:
-    """A builtin, reached without going through name resolution.
-
-    `<var name="plus"/>` asks for whatever `plus` denotes at that point in the
-    document; `<builtin name="plus"/>` asks for the builtin itself. `<expr>`
-    expands its operators into this form, so that `1 + 2` keeps meaning
-    addition regardless of what the surrounding document binds.
-    """
-    name = elem.get("name")
-    if name is None:
-        raise PGSNError("<builtin> requires a 'name' attribute")
-    if name not in _BUILTINS:
-        raise PGSNError(
-            f"Unknown builtin: {name!r}. "
-            f"Known builtins: {', '.join(sorted(_BUILTINS))}")
-    return _BUILTINS[name]
 
 
 def _e_template(elem: ET.Element, chroot: _Chroot,

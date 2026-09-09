@@ -67,17 +67,20 @@ def test_num_and_str_reject_children():
         run("<str><num>1</num></str>")
 
 
-def test_builtin_element():
-    source = ('<apply><builtin name="plus"/>'
+def test_reserved_alias_reaches_the_builtin():
+    """`_plus` is what desugaring writes; a document cannot write it itself."""
+    source = ('<apply><var name="_plus"/>'
               '<arg><num>1</num></arg><arg><num>2</num></arg></apply>')
-    assert run(source) == 3
+    assert expr("1 + 2") == 3
+    with pytest.raises(PGSNError, match="not a valid name"):
+        run(source)
 
 
-def test_builtin_rejects_unknown_and_missing_names():
-    with pytest.raises(PGSNError, match="Unknown builtin"):
-        run('<builtin name="nope"/>')
-    with pytest.raises(PGSNError, match="requires a 'name'"):
-        run("<builtin/>")
+def test_builtin_element_is_gone():
+    """`<builtin>` existed only to make operators unshadowable; the reserved
+    alias does that now, so the element has no remaining purpose."""
+    with pytest.raises(PGSNError, match="Unknown expression"):
+        run('<builtin name="plus"/>')
 
 
 # ------------------------------------------------------------------ #
@@ -229,23 +232,37 @@ def test_expr_rejects_child_elements():
 # The expansion is ordinary XML
 # ------------------------------------------------------------------ #
 
-def test_expansion_uses_builtin_not_var():
+def test_expansion_uses_the_reserved_alias():
     """Operators must not be interceptable by a binding named `plus`."""
     assert expanded("1 + 2") == (
-        '<apply><builtin name="plus" />'
+        '<apply><var name="_plus" />'
         "<arg><num>1</num></arg><arg><num>2</num></arg></apply>"
     )
+
+
+def test_an_operator_ignores_a_rebinding_of_its_name():
+    result = run('<def name="plus">not addition</def><expr>1 + 2</expr>')
+    assert result == 3
 
 
 def test_expansion_of_a_variable_uses_var():
     assert expanded("x") == '<var name="x" />'
 
 
-def test_expansion_is_itself_a_valid_document():
-    """Anything <expr> writes could have been written by hand."""
-    source = 'f"{n} items"'
-    hand_written = expanded(source)
+def test_expansion_is_ordinary_xml_apart_from_the_reserved_names():
+    """Everything <expr> writes could have been written by hand, except that
+    it reaches the builtins through names a document is not allowed to use.
+
+    Stripping the reserved prefix therefore turns the expansion into a
+    document, and that document means the same thing — as long as nothing has
+    rebound the names, which is the whole point of the prefix.
+    """
+    source = 'f"{n} items and {n + 1} boxes"'
+    hand_written = expanded(source).replace('name="_', 'name="')
     assert run(hand_written, DEFS) == expr(source, DEFS)
+
+    with pytest.raises(PGSNError, match="not a valid name"):
+        run(expanded(source), DEFS)
 
 
 def test_expr_composes_with_the_rest_of_the_document():
@@ -274,10 +291,10 @@ def test_generating_sub_goals_by_recursion():
     result = run("""
       <def name="goals" recursive="true">
         <template><param name="i" positional="true"/>
-          <apply><builtin name="if_then_else"/>
+          <apply><var name="if_then_else"/>
             <arg><expr>i == 0</expr></arg>
             <arg><ul/></arg>
-            <arg><apply><builtin name="cons"/>
+            <arg><apply><var name="cons"/>
               <arg><Goal>
                 <description><expr>f"requirement {i} is met"</expr></description>
                 <Evidence><expr>f"test report {i}"</expr></Evidence>

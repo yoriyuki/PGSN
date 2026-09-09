@@ -105,13 +105,21 @@ def test_builtin_terms_are_terms():
     assert not_terms == set()
 
 
-def test_builtin_name_resolves_to_the_public_term():
-    """`<var name="..."/>` substitutes the builtin term itself.
+def test_a_builtin_name_reaches_the_builtin():
+    """`<var name="..."/>` denotes the builtin when nothing else binds it.
 
-    `repeat` is used here because it is the most recent addition.  The result
-    is not evaluated: `repeat` counts down with `minus`, and XML has no integer
-    literal syntax — a bare `3` in a document compiles to the *string* "3" — so
-    the arithmetic builtins cannot yet be exercised from XML at all.
+    Names are no longer substituted at compile time; a document is wrapped in
+    a scope binding the builtins it leaves free.  So the property to check is
+    behavioural, not identity of terms.
     """
-    compiled = compile_pgsn_string('<PGSN><var name="repeat"/></PGSN>')
-    assert compiled is pgsn.repeat
+    doc = ('<PGSN><apply><var name="plus"/>'
+           '<arg><num>1</num></arg><arg><num>2</num></arg></apply></PGSN>')
+    assert pgsn.python_value(pgsn.load_xml_string(doc)) == 3
+
+
+def test_a_document_may_rebind_a_builtin_name():
+    """The other half of the same rule: the builtin scope is the outermost
+    one, so a binding in the document shadows it."""
+    doc = ('<PGSN><def name="plus">not addition</def>'
+           '<var name="plus"/></PGSN>')
+    assert pgsn.python_value(pgsn.load_xml_string(doc)) == "not addition"

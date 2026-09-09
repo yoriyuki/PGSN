@@ -289,7 +289,6 @@
   <choice>
     <element name="num"><text/></element>
     <element name="str"><text/></element>
-    <element name="builtin"><attribute name="name"/></element>
   </choice>
 </define>
 
