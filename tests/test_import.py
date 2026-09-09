@@ -97,12 +97,74 @@ def test_the_module_binding_is_not_reachable_from_the_document(project):
             '<arg name="prefix">p</arg></from><var name="_module"/>'))
 
 
-def test_a_from_that_imports_nothing_binds_nothing(project):
-    """No import, no module binding — and no error either."""
+def test_a_from_in_a_binding_position_needs_an_import(project):
+    """Without one it binds nothing, which used to be accepted in silence."""
+    with pytest.raises(PGSNError, match="needs an 'import'"):
+        pgsn.load_xml(project(
+            '<from file="lib.xml"><arg name="prefix">p</arg></from>'
+            '<str>done</str>'))
+
+
+# ------------------------------------------------------------------ #
+# A module is a value
+# ------------------------------------------------------------------ #
+
+def test_a_from_in_a_value_position_is_the_module_record(project):
     result = pgsn.python_value(pgsn.load_xml(project(
-        '<from file="lib.xml"><arg name="prefix">p</arg></from>'
-        '<str>done</str>')))
-    assert result == "done"
+        '<from file="lib.xml"><arg name="prefix">p</arg></from>')))
+    assert result == {"a": "p a", "b": "p b", "c": "p c"}
+
+
+def test_a_module_can_be_bound_and_selected_from(project):
+    result = pgsn.python_value(pgsn.load_xml(project(
+        '<def name="lib"><from file="lib.xml">'
+        '<arg name="prefix">p</arg></from></def>'
+        '<get label="b" of="lib"/>')))
+    assert result == "p b"
+
+
+def test_a_bound_module_is_an_ordinary_value(project):
+    """It can be held in a list and passed to a template like anything else."""
+    result = pgsn.python_value(pgsn.load_xml(project(
+        '<def name="lib"><from file="lib.xml">'
+        '<arg name="prefix">p</arg></from></def>'
+        '<def name="pick" as="template"><param name="m" positional="true"/>'
+        '<get label="c" of="m"/></def>'
+        '<ul><li><get label="a" of="lib"/></li>'
+        '<li><apply><var name="pick"/><arg var="lib"/></apply></li></ul>')))
+    assert result == ["p a", "p c"]
+
+
+def test_selecting_from_a_module_needs_no_binding_at_all(project):
+    result = pgsn.python_value(pgsn.load_xml(project(
+        '<get name="a"><from file="lib.xml">'
+        '<arg name="prefix">p</arg></from></get>')))
+    assert result == "p a"
+
+
+def test_a_module_used_as_a_value_takes_no_import(project):
+    """The record is the whole module, so selecting at the same time would be
+    two different things spelled as one."""
+    with pytest.raises(PGSNError, match="takes no 'import'"):
+        pgsn.load_xml(project(
+            '<from file="lib.xml" import="a"><arg name="prefix">p</arg></from>'))
+    with pytest.raises(PGSNError, match="takes no 'import'"):
+        pgsn.load_xml(project(
+            '<from file="lib.xml"><import name="a"/>'
+            '<arg name="prefix">p</arg></from>'))
+
+
+def test_as_without_an_import_is_rejected(project):
+    """It renames an imported name, and there is none to rename."""
+    with pytest.raises(PGSNError, match="'as' renames an imported name"):
+        pgsn.load_xml(project(
+            '<from file="lib.xml" as="lib"><arg name="prefix">p</arg></from>'))
+
+
+def test_a_module_used_as_a_value_is_still_confined(project, tmp_path):
+    """First-class or not, a module is reached through the same path rules."""
+    with pytest.raises(PGSNError, match="escapes|No such file"):
+        pgsn.load_xml(project('<from file="../outside.xml"/>'))
 
 
 def test_the_single_import_form_still_works(project):
