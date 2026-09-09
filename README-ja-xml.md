@@ -130,7 +130,7 @@ XML では `<` をエスケープする必要があります。`i &lt; n` と書
 
 ```xml
 <if>
-    <cond><expr>i &lt; threshold</expr></cond>
+    <cond expr="i &lt; threshold"/>
     <then>予算内</then>
     <else>予算超過</else>
 </if>
@@ -142,17 +142,36 @@ XML では `<` をエスケープする必要があります。`i &lt; n` と書
 
 ```xml
 <cases>
-    <case><cond><expr>severity == 0</expr></cond><then>無視できる</then></case>
-    <case><cond><expr>severity &lt; 3</expr></cond><then>許容できる</then></case>
+    <case><cond expr="severity == 0"/><then>無視できる</then></case>
+    <case><cond expr="severity &lt; 3"/><then>許容できる</then></case>
     <else>許容できない</else>
 </cases>
 ```
 
 ここでも `<else>` は必須です。無いと、どれにも当たらなかった `<cases>` は簡約が詰まった項になるだけで、間違いが起きた場所から遠く離れたところで表面化します。
 
-`<cond>`・`<then>`・`<else>` はいずれも値を包むだけのラッパーなので、値の書き方はどれでも使えます。`var` の略記も含みます。
+`<cond>`・`<then>`・`<else>` はいずれも値を包むだけのラッパーなので、値の書き方はどれでも使えます。`var` と `expr` の略記も含みます。
 
 どちらの形式も略記で、コンパイル前に `if_then_else` 組み込みの適用へ展開されます。展開先は横取りできない経路を通るので、`if_then_else` という名前を束縛しているスコープでも `<if>` は条件分岐のままです。
+
+### 式の略記
+
+要素のコンテンツが式ひとつの場合、`expr` 属性は `<expr>` の子要素と同じことを表します。`var` と同様に前処理で展開されるので、2つの綴りは同じものの書き分けです。
+
+```xml
+<!-- 完全形 -->
+<arg><expr>i + 1</expr></arg>
+
+<!-- 略記 -->
+<arg expr="i + 1"/>
+```
+
+属性と自身のコンテンツを両方持つことはできません。XML の都合で2点、注意が要ります。属性値の中では `<` を `&lt;` と書く必要があり、f-string を書くなら属性を `'` で囲まないと中の `"` が閉じてしまいます。
+
+```xml
+<def name="label" expr='f"コンポーネント {i}"'/>
+<li expr="i &lt; n"/>
+```
 
 ### 変数参照の略記
 
