@@ -185,6 +185,17 @@ Brings names from external PGSN files into scope. A document can only reach file
 </from>
 ```
 
+### The module itself
+
+A `<from>` written where a value is expected denotes the module's record, with nothing selected out of it. A module is then an ordinary value: bind it with `<def>`, hold it in a list, pass it to a template.
+
+```xml
+<def name="lib"><from file="security.pgsn"/></def>
+<get label="secureGoal" of="lib"/>
+```
+
+Selecting a name at the point of import is what the forms above are for, so the two spellings do not mix: a `<from>` used as a value takes no `import`, and a `<from>` used as a binding needs one.
+
 ### Import paths and jails
 
 A document is confined to a directory tree, and `file` may only name a file inside it. There are two ways to write a path.

@@ -314,6 +314,7 @@
       <ref name="base_val_pat"/>
     </element>
     <ref name="data_type_pat"/>
+    <ref name="module_pat"/>
     <ref name="GSNNode"/>
   </choice>
 </define>
@@ -349,6 +350,7 @@
   </define>
 
 
+  <!-- <from> in a binding position: selected names are brought into scope. -->
   <define name="import_pat">
   <element name="from">
     <attribute name="file"/>
@@ -370,6 +372,21 @@
         </element>
       </oneOrMore>
     </choice>
+    <ref name="module_args_pat"/>
+  </element>
+</define>
+
+
+<!-- <from> in a value position: the module's record, with nothing selected. -->
+<define name="module_pat">
+  <element name="from">
+    <attribute name="file"/>
+    <ref name="module_args_pat"/>
+  </element>
+</define>
+
+
+<define name="module_args_pat">
     <zeroOrMore>
       <!-- var="x" is not repeated here: val_pat already offers it as one of
            its choices, and declaring the attribute twice in one group is what
@@ -383,7 +400,6 @@
         </optional>
       </element>
     </zeroOrMore>
-  </element>
 </define>
 
 <start>

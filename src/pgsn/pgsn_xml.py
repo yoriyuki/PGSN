@@ -778,17 +778,12 @@ def _compile_def(elem: ET.Element, chroot: _Chroot,
     return name, term
 
 
-def _compile_from(elem: ET.Element, chroot: _Chroot,
-                  visiting: frozenset[Path]) -> list[tuple[str, Term]]:
-    """
-    File I/O at compile time (path is a static literal).
-    Module application and field access are lazy Terms.
+def _module_record(elem: ET.Element, chroot: _Chroot,
+                   visiting: frozenset[Path]) -> Term:
+    """The record a `<from>` denotes: its module applied to its arguments.
 
-    The applied module is bound to a name of its own and each import projects
-    a field off that name, so the module occupies one position in the compiled
-    term however many names are taken from it. The name is reserved, so no
-    document can refer to it, and rebinding it for the next `<from>` in the
-    same block is harmless: each projection reads the binding nearest to it.
+    File I/O happens here, at compile time, because the path is a static
+    literal. The application itself is an ordinary Term and is not evaluated.
     """
     file_path = elem.get("file", "")
     inner, full = chroot.enter(file_path)
@@ -806,7 +801,43 @@ def _compile_from(elem: ET.Element, chroot: _Chroot,
     # Args compiled in the caller's scope — they are Terms, not values yet
     args = {a.get("name"): _content(a, chroot, visiting)
             for a in elem.findall("arg")}
+    return module_term(record(args))
 
+
+def _e_from(elem: ET.Element, chroot: _Chroot,
+            visiting: frozenset[Path]) -> Term:
+    """`<from>` in a value position is the module's record.
+
+        <def name="lib"><from file="lib.xml"/></def>
+        <get name="secureGoal" of="lib"/>
+
+    A module is therefore an ordinary value: it can be bound, passed to a
+    template, or held in a list, like anything else. Selecting names out of it
+    at the point of import remains available and is what `<import>` is for,
+    but that form binds names and so belongs in a binding position.
+    """
+    if elem.get("import") is not None or elem.find("import") is not None:
+        raise PGSNError(
+            "<from> used as a value denotes the whole module, so it takes no "
+            "'import'. Either drop the import and select from the record with "
+            "<get>, or move the <from> into a binding position.")
+    if elem.get("as") is not None:
+        raise PGSNError(
+            "'as' renames an imported name, and <from> used as a value "
+            "imports none. Bind the module with <def> instead.")
+    return _module_record(elem, chroot, visiting)
+
+
+def _compile_from(elem: ET.Element, chroot: _Chroot,
+                  visiting: frozenset[Path]) -> list[tuple[str, Term]]:
+    """`<from>` in a binding position: bring selected names into scope.
+
+    The applied module is bound to a name of its own and each import projects
+    a field off that name, so the module occupies one position in the compiled
+    term however many names are taken from it. The name is reserved, so no
+    document can refer to it, and rebinding it for the next `<from>` in the
+    same block is harmless: each projection reads the binding nearest to it.
+    """
     single = elem.get("import")
     if single:
         wanted = [(elem.get("as", single), single)]
@@ -814,10 +845,13 @@ def _compile_from(elem: ET.Element, chroot: _Chroot,
         wanted = [(imp.get("as", imp.get("name")), imp.get("name"))
                   for imp in elem.findall("import")]
     if not wanted:
-        return []
+        raise PGSNError(
+            "<from> in a binding position needs an 'import'. To bind the "
+            "module itself, write it as a value: "
+            '<def name="..."><from file="..."/></def>.')
 
     module = variable(_MODULE_VAR)
-    return ([(_MODULE_VAR, module_term(record(args)))]
+    return ([(_MODULE_VAR, _module_record(elem, chroot, visiting))]
             + [(alias, module(string(exported))) for alias, exported in wanted])
 
 
@@ -843,6 +877,7 @@ def _expr(elem: ET.Element, chroot: _Chroot,
           visiting: frozenset[Path]) -> Term:
     dispatch = {
         "var":      _e_var,
+        "from":     _e_from,
         "num":      _e_num,
         "str":      _e_str,
         "template": _e_template,
