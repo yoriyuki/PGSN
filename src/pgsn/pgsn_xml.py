@@ -137,6 +137,7 @@ class _Chroot:
 # so the compiler proper never sees them:
 #   1. def-as:          <def as="T">..</def>         ->  <def><T>..</T></def>
 #   2. var-attribute:   <tag var="x"/>               ->  <tag><var name="x"/></tag>
+#   2b. expr-attribute: <tag expr="1 + 2"/>          ->  <tag><expr>1 + 2</expr></tag>
 #   3. GSN text:        <Goal>txt<Strategy/>          ->  <Goal><description>txt</description><Strategy/>
 #   4. apply template:  <apply template="f">...</apply>
 #                                                    ->  <apply><var name="f"/>...</apply>
@@ -438,12 +439,13 @@ def _expand_expr(elem: ET.Element) -> None:
 def _move_content(src: ET.Element, dst: ET.Element) -> None:
     """Transplant whatever `src` says its value is into `dst`.
 
-    A value can be given as text, as a child element, or through the `var`
-    shorthand, and a wrapper like <cond> is transparent to all three.
+    A value can be given as text, as a child element, or through the `var` and
+    `expr` shorthands, and a wrapper like <cond> is transparent to all four.
     """
     dst.text = src.text
-    if "var" in src.attrib:
-        dst.set("var", src.attrib["var"])
+    for shorthand in ("var", "expr"):
+        if shorthand in src.attrib:
+            dst.set(shorthand, src.attrib[shorthand])
     for child in list(src):
         dst.append(child)
 
@@ -539,6 +541,18 @@ def _preprocess(elem: ET.Element) -> None:
         _expand_if(elem)
     elif elem.tag == "cases":
         _expand_cases(elem)
+
+    # expr-attribute: <tag expr="1 + 2"/> -> <tag><expr>1 + 2</expr></tag>
+    # The <expr> this leaves behind is expanded when the recursion below
+    # reaches it, so the two spellings go through the same code.
+    if "expr" in elem.attrib:
+        if len(elem) > 0 or (elem.text and elem.text.strip()):
+            raise PGSNError(
+                f"<{elem.tag}> has both an 'expr' attribute and content of "
+                f"its own; the attribute is shorthand for the content.")
+        source = elem.attrib.pop("expr")
+        expr_elem = ET.SubElement(elem, "expr")
+        expr_elem.text = source
 
     # def-as: wrap the def body in an element named by the `as` attribute
     if elem.tag == "def" and "as" in elem.attrib:

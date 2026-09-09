@@ -132,7 +132,7 @@ Record labels are a different namespace and are unrestricted: `name` on `<get>` 
 
 ```xml
 <if>
-    <cond><expr>i &lt; threshold</expr></cond>
+    <cond expr="i &lt; threshold"/>
     <then>within budget</then>
     <else>over budget</else>
 </if>
@@ -144,17 +144,36 @@ For a chain of conditions, `<cases>` takes the first `<case>` whose `<cond>` hol
 
 ```xml
 <cases>
-    <case><cond><expr>severity == 0</expr></cond><then>negligible</then></case>
-    <case><cond><expr>severity &lt; 3</expr></cond><then>tolerable</then></case>
+    <case><cond expr="severity == 0"/><then>negligible</then></case>
+    <case><cond expr="severity &lt; 3"/><then>tolerable</then></case>
     <else>unacceptable</else>
 </cases>
 ```
 
 `<else>` is required here too. Without one, a `<cases>` that matched nothing would produce a term that simply gets stuck, and the mistake would surface far from where it was made.
 
-Each of `<cond>`, `<then>` and `<else>` is a wrapper holding a value, so any of the ways of writing a value work inside one, including the `var` shorthand.
+Each of `<cond>`, `<then>` and `<else>` is a wrapper holding a value, so any of the ways of writing a value work inside one, including the `var` and `expr` shorthands.
 
 Both forms are shorthands, expanded before compilation into an application of the `if_then_else` builtin, and both reach it in a way no binding can intercept — `<if>` means a conditional even in a scope that binds the name `if_then_else`.
+
+### Shorthand for Expressions
+
+Where an element's content is a single expression, the `expr` attribute says the same thing as an `<expr>` child. Like `var`, it is expanded by the preprocessor, so the two spellings are the same thing written two ways.
+
+```xml
+<!-- full form -->
+<arg><expr>i + 1</expr></arg>
+
+<!-- shorthand -->
+<arg expr="i + 1"/>
+```
+
+An element may not carry both the attribute and content of its own. Two details of XML are worth remembering: `<` must be written `&lt;` inside an attribute value, and an f-string needs the attribute quoted with `'` so that its own `"` survive.
+
+```xml
+<def name="label" expr='f"component {i}"'/>
+<li expr="i &lt; n"/>
+```
 
 ### Shorthand for Variable References
 

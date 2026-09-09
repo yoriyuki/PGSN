@@ -298,7 +298,7 @@
 
 
 <!-- Conditionals. Each part is a wrapper holding a value, so it accepts the
-     same forms a value does, including the var= shorthand. -->
+     same forms a value does, including the var= and expr= shorthands. -->
 <define name="cond_part_pat">
   <element name="cond"><ref name="val_pat"/></element>
 </define>
@@ -368,6 +368,7 @@
   <define name="val_pat">
     <choice>
       <attribute name="var"/>
+      <attribute name="expr"/>
       <ref name="base_val_pat"/>
     </choice>
   </define>
