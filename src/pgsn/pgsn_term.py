@@ -326,8 +326,6 @@ class Abs(Term):
 
 @frozen
 class App(Term):
-    def _shit_or_none(self, num: int, cutoff: int) -> Term | None:
-        pass
 
     t1: Term = field(validator=helpers.not_none)
     t2: Term = field(validator=helpers.not_none)
@@ -336,7 +334,7 @@ class App(Term):
     def _check_t1(self, _, v):
         assert v.is_named == self.is_named
 
-    @t1.validator
+    @t2.validator
     def _check_t2(self, _, v):
         assert v.is_named == self.is_named
 
