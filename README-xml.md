@@ -70,11 +70,10 @@ Bare text is a string, so the other literal forms are written out.
 | bare text | a `String`. Leading and trailing whitespace is removed, and `{name}` fields are interpolated — see [Format Strings in Text](#format-strings-in-text) |
 | `<num>3</num>` | an `Integer`. PGSN has no floating point numbers |
 | `<str> a {b} </str>` | a `String`, taken exactly as written: whitespace is kept and `{...}` is not interpolated |
-| `<builtin name="plus"/>` | the builtin itself, without going through name resolution |
 
 `<num>` matters because bare text stays a string even when it looks like a number, which is what lets a goal say `2024 audit passed` without the year turning into an integer. The arithmetic builtins only accept integers, so `<arg>3</arg>` gives them a string and leaves the term unreduced; write `<arg><num>3</num></arg>`.
 
-`<builtin>` differs from `<var>` in what it asks for: `<var name="plus"/>` asks for whatever `plus` denotes at that point in the document, while `<builtin name="plus"/>` asks for the builtin regardless. It is what [`<expr>`](#expressions-expr) expands its operators into.
+The builtins are ordinary bindings in the outermost scope, so `<var name="plus"/>` reaches the builtin unless something nearer binds that name.
 
 ### Expressions (expr)
 
@@ -85,14 +84,7 @@ Writing arithmetic with `<apply>` is heavy, so `<expr>` accepts the usual infix 
 <def name="label"><expr>f"component {i} of {total}"</expr></def>
 ```
 
-`<expr>` is a shorthand and nothing more. It is expanded into the XML you could have written by hand, before compilation begins, so nothing is reachable through an expression that is not reachable without one. `<expr>1 + 2</expr>` becomes:
-
-```xml
-<apply><builtin name="plus"/>
-  <arg><num>1</num></arg>
-  <arg><num>2</num></arg>
-</apply>
-```
+`<expr>` is a shorthand and nothing more. It is expanded before compilation begins into an application of the corresponding builtin, so nothing is reachable through an expression that is not reachable without one.
 
 **What may appear in an expression**
 
@@ -122,7 +114,17 @@ Everything else is rejected with an error naming what was found. There are no fu
 
 Ordering compares integers only. `"a" < "b"` does not reduce; equality, however, works on any value, so `"a" == "a"` is `True`.
 
-**Operators cannot be redefined.** They expand to `<builtin>`, so `1 + 2` is addition even inside a scope that binds the name `plus`.
+**Operators cannot be redefined.** `1 + 2` is addition even inside a scope that binds the name `plus`.
+
+### Names
+
+A *name* is what `<def>` and `<param>` introduce and what `<var>` refers to. The same rule applies to every attribute that holds one: `name` and `instanceOf` on `<def>`, `<param>` and `<var>`, `as` on `<from>` and `<import>`, `template` on `<apply>`, `of` on `<get>`, `to` on `<send>`, `name` on `<arg>`, and the `var` shorthand attribute.
+
+A name must begin with a letter and may continue with letters, digits and underscores. Letters are not restricted to ASCII, so `ゴール` is a name. A name may **not** begin with an underscore; those are reserved by the implementation.
+
+The rule is the same one Python uses for identifiers, and deliberately so: an [expression](#expressions-expr) is parsed by Python's parser, so a name that could not appear in an expression would be unreachable from one.
+
+Record labels are a different namespace and are unrestricted: `name` on `<get>` and `<send>`, `name` on `<attribute>`, and `key` on `<dt>` are arbitrary strings.
 
 ### Shorthand for Variable References
 
@@ -235,7 +237,11 @@ Symbolic links are expanded before the containment check, so a link planted insi
 
 ## Definitions (def)
 
-`def` binds a name to a value. PGSN is purely functional, so rebinding is not allowed.
+`def` binds a name to a value.
+
+A name may be bound more than once in the same block; a later binding shadows an earlier one from that point on. Nothing is mutated — the earlier binding still holds wherever it was already visible — so this is shadowing, not assignment. In particular a binding's own value is read in the scope *before* it, which means `<def name="x"><var name="x"/></def>` refers to the outer `x` rather than to itself; use `recursive="true"` for self-reference.
+
+The builtin names are bound the same way, in the outermost scope, so a document is free to bind `head` or `goal` to something of its own.
 
 ```xml
 <def name="x">expr</def>
